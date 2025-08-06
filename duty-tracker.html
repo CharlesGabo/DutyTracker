@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Duty Tracker</title>
+    <link href="lib/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .scanner-container { max-width: 400px; margin: 0 auto; }
+        .log-table { font-size: 0.95rem; }
+        .log-table th, .log-table td { vertical-align: middle; }
+        .officer-info { font-size: 1.1rem; margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="index.html" class="btn btn-secondary">← Home</a>
+        <div>
+            <button id="importLogsBtn" class="btn btn-info me-2">Import</button>
+            <button id="exportLogsBtn" class="btn btn-success">Export</button>
+        </div>
+    </div>
+    <h1 class="mb-4">Duty Tracker</h1>
+    <div class="scanner-container mb-4">
+        <input type="text" id="barcodeInput" class="form-control form-control-lg" placeholder="Scan barcode here..." autofocus autocomplete="off" style="font-size:1.5rem; text-align:center;" />
+        <audio id="beepSound" src="Barcode scanner beep sound (sound effect).mp3" preload="auto"></audio>
+    </div>
+    <div id="officerInfo" class="officer-info"></div>
+    <h3 class="mt-4">Today's Duty Logs</h3>
+    <div class="table-responsive">
+        <table class="table table-bordered log-table mt-2" id="logsTable">
+            <thead class="table-light">
+                <tr>
+                    <th>Time</th>
+                    <th>Officer ID</th>
+                    <th>Name</th>
+                    <th>Section</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+        </table>
+    </div>
+    <input type="file" id="importLogsInput" accept=".xlsx" style="display:none;" />
+</div>
+<script src="lib/bootstrap.bundle.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/encoder.js"></script>
+<script>
+// --- Officer Database (shared with barcode-database.html) ---
+function loadOfficers() {
+    const data = localStorage.getItem('barcodeStudents');
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+
+// --- Duty Logs Storage ---
+function getTodayKey() {
+    const today = new Date();
+    return 'dutyLogs-' + today.getFullYear() + '-' + (today.getMonth()+1) + '-' + today.getDate();
+}
+function loadLogs() {
+    const key = getTodayKey();
+    const data = localStorage.getItem(key);
+    if (data) {
+        try {
+            return JSON.parse(data);
+        } catch (e) {
+            return [];
+        }
+    }
+    return [];
+}
+function saveLogs(logs) {
+    const key = getTodayKey();
+    localStorage.setItem(key, JSON.stringify(logs));
+}
+
+// --- Check-in/Check-out Logic ---
+function getLastAction(logs, officerId) {
+    for (let i = logs.length - 1; i >= 0; i--) {
+        if (logs[i].officerId === officerId) {
+            return logs[i].action;
+        }
+    }
+    return null;
+}
+
+function getOfficerByBarcode(barcode) {
+    // Try direct match (studentId)
+    const officers = loadOfficers();
+    let officer = officers.find(s => s.studentId === barcode);
+    if (officer) return officer;
+    // Try encoded barcode (using encodeStudentData)
+    if (window.encodeStudentData) {
+        officer = officers.find(s => window.encodeStudentData(s.studentId) === barcode);
+        if (officer) return officer;
+    }
+    return null;
+}
+
+function addLogEntry(officer, action) {
+    const logs = loadLogs();
+    logs.push({
+        time: new Date().toLocaleTimeString(),
+        officerId: officer.studentId,
+        name: officer.studentName,
+        section: officer.section,
+        action
+    });
+    saveLogs(logs);
+    renderLogs();
+}
+
+function renderLogs() {
+    const logs = loadLogs();
+    const tbody = document.getElementById('logsBody');
+    tbody.innerHTML = '';
+    logs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${log.time}</td>
+            <td>${log.officerId}</td>
+            <td>${log.name}</td>
+            <td>${log.section}</td>
+            <td>${log.action}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function showOfficerInfo(officer, action) {
+    const infoDiv = document.getElementById('officerInfo');
+    infoDiv.innerHTML = officer ?
+        `<span class="badge bg-primary">${action}</span> <strong>${officer.studentName}</strong> (ID: ${officer.studentId}, Section: ${officer.section})` :
+        '<span class="text-danger">Officer not found!</span>';
+    setTimeout(() => { infoDiv.innerHTML = ''; }, 4000);
+}
+
+// --- Barcode Scanner ---
+function onScanSuccess(decodedText) {
+    const officer = getOfficerByBarcode(decodedText);
+    if (!officer) {
+        showOfficerInfo(null);
+        return;
+    }
+    const logs = loadLogs();
+    const lastAction = getLastAction(logs, officer.studentId);
+    const action = lastAction === 'Check-in' ? 'Check-out' : 'Check-in';
+    addLogEntry(officer, action);
+    showOfficerInfo(officer, action);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    renderLogs();
+    const barcodeInput = document.getElementById('barcodeInput');
+    const beepSound = document.getElementById('beepSound');
+    barcodeInput.focus();
+    let lastValue = '';
+    // Auto-read barcode as soon as input is detected (barcode scanners usually send a suffix like Enter or Tab)
+    barcodeInput.addEventListener('input', function(e) {
+        // Only process if value changed and not empty
+        if (barcodeInput.value && barcodeInput.value !== lastValue) {
+            lastValue = barcodeInput.value;
+            // Play beep
+            beepSound.currentTime = 0;
+            beepSound.play();
+            // Process barcode
+            onScanSuccess(barcodeInput.value.trim());
+            barcodeInput.value = '';
+            lastValue = '';
+        }
+    });
+    // Refocus input if user clicks elsewhere
+    document.body.addEventListener('click', function() {
+        barcodeInput.focus();
+    });
+});
+
+// --- Export Logs to Excel ---
+document.getElementById('exportLogsBtn').addEventListener('click', function() {
+    const logs = loadLogs();
+    const exportData = [
+        ['Time', 'Officer ID', 'Name', 'Section', 'Action']
+    ];
+    logs.forEach(log => {
+        exportData.push([log.time, log.officerId, log.name, log.section, log.action]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DutyLogs');
+    XLSX.writeFile(wb, 'duty-logs.xlsx');
+});
+
+// --- Import Logs from Excel ---
+document.getElementById('importLogsBtn').addEventListener('click', function() {
+    document.getElementById('importLogsInput').click();
+});
+document.getElementById('importLogsInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        // Expecting header: Time, Officer ID, Name, Section, Action
+        const header = rows[0].map(h => h.toLowerCase());
+        const newLogs = [];
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.length >= 5) {
+                newLogs.push({
+                    time: String(row[header.indexOf('time')]),
+                    officerId: String(row[header.indexOf('officer id')]),
+                    name: String(row[header.indexOf('name')]),
+                    section: String(row[header.indexOf('section')]),
+                    action: String(row[header.indexOf('action')])
+                });
+            }
+        }
+        saveLogs(newLogs);
+        renderLogs();
+        alert('Logs imported successfully!');
+    };
+    reader.readAsArrayBuffer(file);
+});
+</script>
+</body>
+</html>

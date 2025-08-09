@@ -14,35 +14,135 @@
 </head>
 <body>
 <div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <a href="index.html" class="btn btn-secondary">← Home</a>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <a href="index.html" class="btn btn-secondary">← Home</a>
+  </div>
+
+  <h1 class="mb-3">Duty Tracker</h1>
+
+  <ul class="nav nav-tabs" id="dtTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan" type="button" role="tab">Scan</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="generate-tab" data-bs-toggle="tab" data-bs-target="#generate" type="button" role="tab">Generate Barcodes</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">Log History</button>
+    </li>
+  </ul>
+
+  <div class="tab-content pt-3" id="dtTabsContent">
+    <!-- Scan Tab -->
+    <div class="tab-pane fade show active" id="scan" role="tabpanel" aria-labelledby="scan-tab">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div></div>
         <div>
-            <button id="importLogsBtn" class="btn btn-info me-2">Import</button>
-            <button id="exportLogsBtn" class="btn btn-success">Export</button>
+          <button id="importLogsBtn" class="btn btn-info me-2">Import Today</button>
+          <button id="exportLogsBtn" class="btn btn-success">Export Today</button>
         </div>
-    </div>
-    <h1 class="mb-4">Duty Tracker</h1>
-    <div class="scanner-container mb-4">
+      </div>
+      <div class="scanner-container mb-3">
         <input type="text" id="barcodeInput" class="form-control form-control-lg" placeholder="Scan barcode here..." autofocus autocomplete="off" style="font-size:1.5rem; text-align:center;" />
         <audio id="beepSound" src="Barcode scanner beep sound (sound effect).mp3" preload="auto"></audio>
-    </div>
-    <div id="officerInfo" class="officer-info"></div>
-    <h3 class="mt-4">Today's Duty Logs</h3>
-    <div class="table-responsive">
+      </div>
+      <div id="officerInfo" class="officer-info"></div>
+      <h3 class="mt-4">Today's Duty Logs</h3>
+      <div class="table-responsive">
         <table class="table table-bordered log-table mt-2" id="logsTable">
-            <thead class="table-light">
-                <tr>
-                    <th>Time</th>
-                    <th>Officer ID</th>
-                    <th>Name</th>
-                    <th>Section</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="logsBody"></tbody>
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Officer ID</th>
+              <th>Name</th>
+              <th>Section</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="logsBody"></tbody>
         </table>
+      </div>
+      <input type="file" id="importLogsInput" accept=".xlsx" style="display:none;" />
     </div>
-    <input type="file" id="importLogsInput" accept=".xlsx" style="display:none;" />
+
+    <!-- Generate Barcodes Tab (embedded from generate-qr.html) -->
+    <div class="tab-pane fade" id="generate" role="tabpanel" aria-labelledby="generate-tab">
+      <div class="card mb-4">
+        <div class="card-header">
+          <h2 class="h5 mb-0">Bulk Generate Barcodes</h2>
+        </div>
+        <div class="card-body">
+          <form id="bulkUploadForm">
+            <div class="mb-3">
+              <label for="excelFile" class="form-label">Upload Excel File</label>
+              <input type="file" class="form-control" id="excelFile" accept=".xlsx,.xls" required>
+              <div class="form-text">Upload an Excel file with columns: Student ID, Student Name, Section</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Barcodes</button>
+          </form>
+          <div id="bulkBarcodes" class="mt-3"></div>
+          <div class="text-center mt-2">
+            <button id="downloadAllBarcodes" class="btn btn-success" style="display: none;">Download All Barcodes</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="h5 mb-0">Generate Single Barcode</h2>
+        </div>
+        <div class="card-body">
+          <form id="barcodeForm">
+            <div class="mb-3">
+              <label for="studentId" class="form-label">Student ID</label>
+              <input type="text" class="form-control" id="studentId" required>
+            </div>
+            <div class="mb-3">
+              <label for="studentName" class="form-label">Student Name</label>
+              <input type="text" class="form-control" id="studentName" required>
+            </div>
+            <div class="mb-3">
+              <label for="section" class="form-label">Section</label>
+              <input type="text" class="form-control" id="section" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Barcode</button>
+          </form>
+          <div id="barcode" class="mt-3 text-center"></div>
+          <div class="text-center mt-2">
+            <button id="downloadBarcode" class="btn btn-success" style="display: none;">Download Barcode</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log History Tab -->
+    <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
+      <div class="row g-3 align-items-end mb-3">
+        <div class="col-md-4">
+          <label for="historyDateSelect" class="form-label">Select Date</label>
+          <select id="historyDateSelect" class="form-select"></select>
+        </div>
+        <div class="col-md-8 text-md-end">
+          <button id="exportHistoryBtn" class="btn btn-success me-2">Export Selected Day</button>
+          <button id="refreshHistoryBtn" class="btn btn-outline-secondary">Refresh</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered log-table mt-2" id="historyTable">
+          <thead class="table-light">
+            <tr>
+              <th>Time</th>
+              <th>Officer ID</th>
+              <th>Name</th>
+              <th>Section</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="lib/bootstrap.bundle.min.js"></script>
 <script src="lib/xlsx.full.min.js"></script>
@@ -182,6 +282,31 @@ window.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('click', function() {
         barcodeInput.focus();
     });
+
+    // Activate tab from hash (e.g., #generate or #history)
+    const hash = window.location.hash;
+    if (hash === '#generate' || hash === '#history' || hash === '#scan') {
+        const triggerEl = document.querySelector(`button[data-bs-target="${hash}"]`);
+        if (triggerEl) new bootstrap.Tab(triggerEl).show();
+    }
+    // When tab changes, update hash
+    document.querySelectorAll('#dtTabs button[data-bs-toggle="tab"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            const target = e.target.getAttribute('data-bs-target');
+            if (target) history.replaceState(null, '', target);
+        });
+    });
+    // Build history selector on first load and whenever history tab is shown
+    buildHistoryDateOptions();
+    document.getElementById('refreshHistoryBtn').addEventListener('click', () => {
+        buildHistoryDateOptions();
+    });
+    document.getElementById('historyDateSelect').addEventListener('change', () => {
+        renderHistory();
+    });
+    document.getElementById('history-tab').addEventListener('shown.bs.tab', () => {
+        buildHistoryDateOptions();
+    });
 });
 
 // --- Export Logs to Excel ---
@@ -233,6 +358,95 @@ document.getElementById('importLogsInput').addEventListener('change', function(e
     };
     reader.readAsArrayBuffer(file);
 });
+
+// --- Log History helpers ---
+function listAllLogDateKeys() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('dutyLogs-')) keys.push(k);
+    }
+    // Sort most recent first by date value
+    keys.sort((a, b) => {
+        const da = new Date(a.replace('dutyLogs-', '').replace(/-/g, '/'));
+        const db = new Date(b.replace('dutyLogs-', '').replace(/-/g, '/'));
+        return db - da;
+    });
+    return keys;
+}
+
+function buildHistoryDateOptions() {
+    const select = document.getElementById('historyDateSelect');
+    const keys = listAllLogDateKeys();
+    const currentKey = getTodayKey();
+    select.innerHTML = '';
+    if (keys.length === 0) {
+        const opt = document.createElement('option');
+        opt.textContent = 'No logs found';
+        opt.value = '';
+        select.appendChild(opt);
+        document.getElementById('historyBody').innerHTML = '';
+        return;
+    }
+    keys.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k;
+        const label = k.replace('dutyLogs-', '');
+        opt.textContent = label + (k === currentKey ? ' (Today)' : '');
+        select.appendChild(opt);
+    });
+    // Default to first (most recent)
+    select.value = keys[0];
+    renderHistory();
+}
+
+function loadLogsByKey(key) {
+    const data = localStorage.getItem(key);
+    if (!data) return [];
+    try { return JSON.parse(data); } catch { return []; }
+}
+
+function renderHistory() {
+    const select = document.getElementById('historyDateSelect');
+    const key = select.value;
+    const logs = key ? loadLogsByKey(key) : [];
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+    logs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${log.time || ''}</td>
+            <td>${log.officerId || ''}</td>
+            <td>${log.name || ''}</td>
+            <td>${log.section || ''}</td>
+            <td>${log.action || ''}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+document.getElementById('exportHistoryBtn').addEventListener('click', function() {
+    const select = document.getElementById('historyDateSelect');
+    const key = select.value;
+    if (!key) return;
+    const logs = loadLogsByKey(key);
+    const exportData = [
+        ['Time', 'Officer ID', 'Name', 'Section', 'Action']
+    ];
+    logs.forEach(log => {
+        exportData.push([log.time, log.officerId, log.name, log.section, log.action]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DutyLogs');
+    const dateLabel = key.replace('dutyLogs-', '').replace(/\//g, '-');
+    XLSX.writeFile(wb, `duty-logs-${dateLabel}.xlsx`);
+});
 </script>
+<!-- Extra libs for embedded barcode generation -->
+<script src="lib/JsBarcode.all.min.js"></script>
+<script src="lib/jszip.min.js"></script>
+<!-- Reuse existing generator logic -->
+<script src="generate-qr.js"></script>
 </body>
 </html>

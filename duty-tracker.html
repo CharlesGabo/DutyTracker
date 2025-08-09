@@ -10,6 +10,29 @@
         .log-table { font-size: 0.95rem; }
         .log-table th, .log-table td { vertical-align: middle; }
         .officer-info { font-size: 1.1rem; margin-bottom: 1rem; }
+        
+        /* Summary styling */
+        .summary-table { font-size: 1rem; }
+        .rank-1 { background: linear-gradient(135deg, #ffd700, #ffed4e); color: #b8860b; font-weight: bold; }
+        .rank-2 { background: linear-gradient(135deg, #c0c0c0, #e5e5e5); color: #555; font-weight: bold; }
+        .rank-3 { background: linear-gradient(135deg, #cd7f32, #daa520); color: #8b4513; font-weight: bold; }
+        .rank-medal { font-size: 1.2em; margin-right: 8px; }
+        .rank-badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.85em; font-weight: bold; }
+        .rank-badge.top { background: #28a745; color: white; }
+        .rank-badge.high { background: #17a2b8; color: white; }
+        .rank-badge.medium { background: #ffc107; color: #212529; }
+        .rank-badge.low { background: #6c757d; color: white; }
+        .duration-highlight { font-weight: bold; font-size: 1.1em; }
+        .summary-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .top-performer { box-shadow: 0 4px 8px rgba(255, 215, 0, 0.3); }
+        .summary-row:hover { background-color: #f8f9fa; transform: translateY(-1px); transition: all 0.2s ease; }
+        
+        /* Time-in/Time-out styling */
+        .time-in-row { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .time-out-row { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .action-badge { padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em; }
+        .action-time-in { background-color: #28a745; color: white; }
+        .action-time-out { background-color: #dc3545; color: white; }
     </style>
 </head>
 <body>
@@ -25,23 +48,20 @@
       <button class="nav-link active" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan" type="button" role="tab">Scan</button>
     </li>
     <li class="nav-item" role="presentation">
+      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">Log History</button>
+    </li>
+    <li class="nav-item" role="presentation">
       <button class="nav-link" id="generate-tab" data-bs-toggle="tab" data-bs-target="#generate" type="button" role="tab">Generate Barcodes</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">Log History</button>
+      <button class="nav-link" id="database-tab" data-bs-toggle="tab" data-bs-target="#database" type="button" role="tab">Barcode Database</button>
     </li>
   </ul>
 
   <div class="tab-content pt-3" id="dtTabsContent">
     <!-- Scan Tab -->
     <div class="tab-pane fade show active" id="scan" role="tabpanel" aria-labelledby="scan-tab">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div></div>
-        <div>
-          <button id="importLogsBtn" class="btn btn-info me-2">Import Today</button>
-          <button id="exportLogsBtn" class="btn btn-success">Export Today</button>
-        </div>
-      </div>
+
       <div class="scanner-container mb-3">
         <input type="text" id="barcodeInput" class="form-control form-control-lg" placeholder="Scan barcode here..." autofocus autocomplete="off" style="font-size:1.5rem; text-align:center;" />
         <audio id="beepSound" src="Barcode scanner beep sound (sound effect).mp3" preload="auto"></audio>
@@ -52,7 +72,9 @@
         <table class="table table-bordered log-table mt-2" id="logsTable">
           <thead class="table-light">
             <tr>
-              <th>Time</th>
+              <th>Time In</th>
+              <th>Time Out</th>
+              <th>Duration</th>
               <th>Officer ID</th>
               <th>Name</th>
               <th>Section</th>
@@ -62,7 +84,7 @@
           <tbody id="logsBody"></tbody>
         </table>
       </div>
-      <input type="file" id="importLogsInput" accept=".xlsx" style="display:none;" />
+
     </div>
 
     <!-- Generate Barcodes Tab (embedded from generate-qr.html) -->
@@ -115,31 +137,93 @@
       </div>
     </div>
 
-    <!-- Log History Tab -->
+        <!-- Log History Tab -->
     <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
       <div class="row g-3 align-items-end mb-3">
-        <div class="col-md-4">
-          <label for="historyDateSelect" class="form-label">Select Date</label>
-          <select id="historyDateSelect" class="form-select"></select>
+        <div class="col-md-3">
+          <label for="historyFilterType" class="form-label">Filter Type</label>
+          <select id="historyFilterType" class="form-select">
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
         </div>
-        <div class="col-md-8 text-md-end">
-          <button id="exportHistoryBtn" class="btn btn-success me-2">Export Selected Day</button>
+        <div class="col-md-3">
+          <label for="historyDateInput" class="form-label">Select Date</label>
+          <input type="date" id="historyDateInput" class="form-control" />
+        </div>
+        <div class="col-md-6 text-md-end">
+          <button id="importHistoryBtn" class="btn btn-info me-2">Import Data</button>
+          <button id="exportHistoryBtn" class="btn btn-success me-2">Export All Data</button>
           <button id="refreshHistoryBtn" class="btn btn-outline-secondary">Refresh</button>
         </div>
       </div>
-      <div class="table-responsive">
-        <table class="table table-bordered log-table mt-2" id="historyTable">
-          <thead class="table-light">
-            <tr>
-              <th>Time</th>
-              <th>Officer ID</th>
-              <th>Name</th>
-              <th>Section</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="historyBody"></tbody>
-        </table>
+
+      <!-- Sub-tabs for Log History -->
+      <ul class="nav nav-tabs" id="historySubTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="order-list-tab" data-bs-toggle="tab" data-bs-target="#order-list" type="button" role="tab">Recent</button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Summary</button>
+        </li>
+      </ul>
+
+      <div class="tab-content pt-3" id="historySubTabsContent">
+        <!-- Order List Sub-tab -->
+        <div class="tab-pane fade show active" id="order-list" role="tabpanel" aria-labelledby="order-list-tab">
+          <div class="table-responsive">
+            <table class="table table-bordered log-table mt-2" id="historyTable">
+              <thead class="table-light">
+                <tr>
+                  <th>Time In</th>
+                  <th>Time Out</th>
+                  <th>Duration</th>
+                  <th>Officer ID</th>
+                  <th>Name</th>
+                  <th>Section</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Summary Sub-tab -->
+        <div class="tab-pane fade" id="summary" role="tabpanel" aria-labelledby="summary-tab">
+          <div class="mb-3">
+            <h4 class="text-center mb-3">Duty Hours Leaderboard</h4>
+            <div id="summaryStats" class="row text-center mb-3"></div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered summary-table" id="summaryTable">
+              <thead class="summary-header">
+                <tr>
+                  <th>Rank</th>
+                  <th>Officer ID</th>
+                  <th>Name</th>
+                  <th>Section</th>
+                  <th>Total Duration</th>
+                </tr>
+              </thead>
+              <tbody id="summaryBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="importHistoryInput" accept=".xlsx" style="display:none;" />
+    </div>
+
+    <!-- Barcode Database Tab -->
+    <div class="tab-pane fade" id="database" role="tabpanel" aria-labelledby="database-tab">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="h5 mb-0">Barcode Database</h2>
+        </div>
+        <div class="card-body p-0">
+          <iframe src="barcode-database.html" title="Barcode Database" style="width:100%; height:80vh; border:0;"></iframe>
+        </div>
       </div>
     </div>
   </div>
@@ -183,14 +267,31 @@ function saveLogs(logs) {
     localStorage.setItem(key, JSON.stringify(logs));
 }
 
-// --- Check-in/Check-out Logic ---
-function getLastAction(logs, officerId) {
-    for (let i = logs.length - 1; i >= 0; i--) {
-        if (logs[i].officerId === officerId) {
-            return logs[i].action;
-        }
-    }
-    return null;
+// --- Time helpers ---
+function formatLocalTime(isoOrText) {
+    if (!isoOrText) return '';
+    const d = new Date(isoOrText);
+    if (isNaN(d)) return String(isoOrText);
+    return d.toLocaleTimeString();
+}
+
+function formatDuration(totalSeconds) {
+    if (typeof totalSeconds !== 'number' || !isFinite(totalSeconds) || totalSeconds < 0) return '';
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const hh = String(hours).padStart(2, '0');
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+}
+
+function elapsedSeconds(fromIso, toIso) {
+    if (!fromIso) return 0;
+    const start = new Date(fromIso);
+    const end = toIso ? new Date(toIso) : new Date();
+    if (isNaN(start) || isNaN(end)) return 0;
+    return Math.max(0, Math.floor((end - start) / 1000));
 }
 
 function getOfficerByBarcode(barcode) {
@@ -206,33 +307,96 @@ function getOfficerByBarcode(barcode) {
     return null;
 }
 
-function addLogEntry(officer, action) {
+// --- Time-in/Time-out toggle ---
+function toggleDuty(officer) {
     const logs = loadLogs();
-    logs.push({
-        time: new Date().toLocaleTimeString(),
-        officerId: officer.studentId,
-        name: officer.studentName,
-        section: officer.section,
-        action
-    });
-    saveLogs(logs);
-    renderLogs();
+    const openIdx = logs.findIndex(l => l.officerId === officer.studentId && !l.timeOut);
+    if (openIdx >= 0) {
+        // Time-out existing session
+        const nowIso = new Date().toISOString();
+        const openSession = logs[openIdx];
+        openSession.timeOut = nowIso;
+        openSession.durationSec = elapsedSeconds(openSession.timeIn, openSession.timeOut);
+        openSession.action = 'Time-out';
+        logs[openIdx] = openSession;
+        saveLogs(logs);
+        renderLogs();
+        showOfficerInfo(officer, 'Time-out');
+        return 'Time-out';
+    } else {
+        // Start a new session (Time-in)
+        logs.push({
+            timeIn: new Date().toISOString(),
+            timeOut: '',
+            durationSec: 0,
+            officerId: officer.studentId,
+            name: officer.studentName,
+            section: officer.section,
+            action: 'Time-in'
+        });
+        saveLogs(logs);
+        renderLogs();
+        showOfficerInfo(officer, 'Time-in');
+        return 'Time-in';
+    }
 }
 
 function renderLogs() {
     const logs = loadLogs();
     const tbody = document.getElementById('logsBody');
     tbody.innerHTML = '';
-    logs.forEach(log => {
+    // Reverse the order to show most recent first
+    logs.slice().reverse().forEach((log, index) => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${log.time}</td>
-            <td>${log.officerId}</td>
-            <td>${log.name}</td>
-            <td>${log.section}</td>
-            <td>${log.action}</td>
-        `;
+        const isSession = typeof log.timeIn !== 'undefined' || typeof log.timeOut !== 'undefined';
+        if (isSession) {
+            const running = !log.timeOut;
+            const actionText = log.action || (running ? 'Time-in' : 'Time-out');
+            const durationText = running
+                ? `<span class="duration-running" data-time-in="${log.timeIn}">${formatDuration(elapsedSeconds(log.timeIn))}</span>`
+                : formatDuration(log.durationSec ?? elapsedSeconds(log.timeIn, log.timeOut));
+            
+            // Apply row styling based on action
+            if (running || actionText === 'Time-in') {
+                tr.className = 'time-in-row';
+            } else if (actionText === 'Time-out') {
+                tr.className = 'time-out-row';
+            }
+            
+            tr.innerHTML = `
+                <td>${formatLocalTime(log.timeIn)}</td>
+                <td>${formatLocalTime(log.timeOut)}</td>
+                <td>${durationText}</td>
+                <td>${log.officerId}</td>
+                <td>${log.name}</td>
+                <td>${log.section}</td>
+                <td><span class="action-badge ${running || actionText === 'Time-in' ? 'action-time-in' : 'action-time-out'}">${actionText}</span></td>
+            `;
+        } else {
+            // Backward compatibility for old single-event logs
+            const actionClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'action-time-in' : 'action-time-out';
+            const rowClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'time-in-row' : 'time-out-row';
+            tr.className = rowClass;
+            tr.innerHTML = `
+                <td>${formatLocalTime(log.time)}</td>
+                <td></td>
+                <td></td>
+                <td>${log.officerId || ''}</td>
+                <td>${log.name || ''}</td>
+                <td>${log.section || ''}</td>
+                <td><span class="action-badge ${actionClass}">${log.action || ''}</span></td>
+            `;
+        }
         tbody.appendChild(tr);
+    });
+}
+
+// Update durations every second for running sessions
+function updateRunningDurations() {
+    const els = document.querySelectorAll('.duration-running');
+    els.forEach(el => {
+        const timeIn = el.getAttribute('data-time-in');
+        el.textContent = formatDuration(elapsedSeconds(timeIn));
     });
 }
 
@@ -251,11 +415,7 @@ function onScanSuccess(decodedText) {
         showOfficerInfo(null);
         return;
     }
-    const logs = loadLogs();
-    const lastAction = getLastAction(logs, officer.studentId);
-    const action = lastAction === 'Check-in' ? 'Check-out' : 'Check-in';
-    addLogEntry(officer, action);
-    showOfficerInfo(officer, action);
+    toggleDuty(officer);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -283,9 +443,9 @@ window.addEventListener('DOMContentLoaded', () => {
         barcodeInput.focus();
     });
 
-    // Activate tab from hash (e.g., #generate or #history)
+    // Activate tab from hash (e.g., #generate, #history, #database, #scan)
     const hash = window.location.hash;
-    if (hash === '#generate' || hash === '#history' || hash === '#scan') {
+    if (hash === '#generate' || hash === '#history' || hash === '#database' || hash === '#scan') {
         const triggerEl = document.querySelector(`button[data-bs-target="${hash}"]`);
         if (triggerEl) new bootstrap.Tab(triggerEl).show();
     }
@@ -297,67 +457,25 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     });
     // Build history selector on first load and whenever history tab is shown
-    buildHistoryDateOptions();
+    initHistoryDatePicker();
     document.getElementById('refreshHistoryBtn').addEventListener('click', () => {
-        buildHistoryDateOptions();
+        initHistoryDatePicker();
     });
-    document.getElementById('historyDateSelect').addEventListener('change', () => {
+    document.getElementById('historyDateInput').addEventListener('change', () => {
+        renderHistory();
+    });
+    document.getElementById('historyFilterType').addEventListener('change', () => {
         renderHistory();
     });
     document.getElementById('history-tab').addEventListener('shown.bs.tab', () => {
-        buildHistoryDateOptions();
+        initHistoryDatePicker();
     });
 });
 
-// --- Export Logs to Excel ---
-document.getElementById('exportLogsBtn').addEventListener('click', function() {
-    const logs = loadLogs();
-    const exportData = [
-        ['Time', 'Officer ID', 'Name', 'Section', 'Action']
-    ];
-    logs.forEach(log => {
-        exportData.push([log.time, log.officerId, log.name, log.section, log.action]);
-    });
-    const ws = XLSX.utils.aoa_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'DutyLogs');
-    XLSX.writeFile(wb, 'duty-logs.xlsx');
-});
+// Start interval for live durations
+setInterval(updateRunningDurations, 1000);
 
-// --- Import Logs from Excel ---
-document.getElementById('importLogsBtn').addEventListener('click', function() {
-    document.getElementById('importLogsInput').click();
-});
-document.getElementById('importLogsInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(evt) {
-        const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-        // Expecting header: Time, Officer ID, Name, Section, Action
-        const header = rows[0].map(h => h.toLowerCase());
-        const newLogs = [];
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.length >= 5) {
-                newLogs.push({
-                    time: String(row[header.indexOf('time')]),
-                    officerId: String(row[header.indexOf('officer id')]),
-                    name: String(row[header.indexOf('name')]),
-                    section: String(row[header.indexOf('section')]),
-                    action: String(row[header.indexOf('action')])
-                });
-            }
-        }
-        saveLogs(newLogs);
-        renderLogs();
-        alert('Logs imported successfully!');
-    };
-    reader.readAsArrayBuffer(file);
-});
+
 
 // --- Log History helpers ---
 function listAllLogDateKeys() {
@@ -375,28 +493,83 @@ function listAllLogDateKeys() {
     return keys;
 }
 
-function buildHistoryDateOptions() {
-    const select = document.getElementById('historyDateSelect');
+function keyToDateString(key) {
+    // key format: dutyLogs-YYYY-M-D
+    const raw = key.replace('dutyLogs-', '');
+    const [y, m, d] = raw.split('-').map(Number);
+    const mm = String(m).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    return `${y}-${mm}-${dd}`;
+}
+
+function dateStringToKey(dateStr) {
+    // dateStr: YYYY-MM-DD
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `dutyLogs-${y}-${m}-${d}`; // keep storage non-padded to match existing
+}
+
+function getWeekRange(dateStr) {
+    const date = new Date(dateStr);
+    const day = date.getDay();
+    const diff = date.getDate() - day; // Sunday is 0
+    const sunday = new Date(date.setDate(diff));
+    const saturday = new Date(date.setDate(diff + 6));
+    return { start: sunday, end: saturday };
+}
+
+function getMonthRange(dateStr) {
+    const date = new Date(dateStr);
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    return { start, end };
+}
+
+function getDateKeysInRange(startDate, endDate) {
+    const keys = [];
+    const current = new Date(startDate);
+    while (current <= endDate) {
+        const year = current.getFullYear();
+        const month = current.getMonth() + 1;
+        const day = current.getDate();
+        keys.push(`dutyLogs-${year}-${month}-${day}`);
+        current.setDate(current.getDate() + 1);
+    }
+    return keys;
+}
+
+function aggregateLogsByPeriod(filterType, dateStr) {
+    let keys = [];
+    if (filterType === 'daily') {
+        keys = [dateStringToKey(dateStr)];
+    } else if (filterType === 'weekly') {
+        const range = getWeekRange(dateStr);
+        keys = getDateKeysInRange(range.start, range.end);
+    } else if (filterType === 'monthly') {
+        const range = getMonthRange(dateStr);
+        keys = getDateKeysInRange(range.start, range.end);
+    }
+    
+    const allLogs = [];
+    keys.forEach(key => {
+        const logs = loadLogsByKey(key);
+        allLogs.push(...logs);
+    });
+    return allLogs;
+}
+
+function initHistoryDatePicker() {
+    const input = document.getElementById('historyDateInput');
     const keys = listAllLogDateKeys();
-    const currentKey = getTodayKey();
-    select.innerHTML = '';
     if (keys.length === 0) {
-        const opt = document.createElement('option');
-        opt.textContent = 'No logs found';
-        opt.value = '';
-        select.appendChild(opt);
+        input.value = '';
         document.getElementById('historyBody').innerHTML = '';
+        input.disabled = true;
         return;
     }
-    keys.forEach(k => {
-        const opt = document.createElement('option');
-        opt.value = k;
-        const label = k.replace('dutyLogs-', '');
-        opt.textContent = label + (k === currentKey ? ' (Today)' : '');
-        select.appendChild(opt);
-    });
-    // Default to first (most recent)
-    select.value = keys[0];
+    input.disabled = false;
+    // Default to most recent logs date
+    const latestKey = keys[0];
+    input.value = keyToDateString(latestKey);
     renderHistory();
 }
 
@@ -407,40 +580,334 @@ function loadLogsByKey(key) {
 }
 
 function renderHistory() {
-    const select = document.getElementById('historyDateSelect');
-    const key = select.value;
-    const logs = key ? loadLogsByKey(key) : [];
+    const input = document.getElementById('historyDateInput');
+    const filterType = document.getElementById('historyFilterType').value;
+    const dateStr = input.value;
+    if (!dateStr) { 
+        document.getElementById('historyBody').innerHTML = '';
+        document.getElementById('summaryBody').innerHTML = '';
+        document.getElementById('summaryStats').innerHTML = '';
+        return; 
+    }
+    
+    const logs = aggregateLogsByPeriod(filterType, dateStr);
     const tbody = document.getElementById('historyBody');
     tbody.innerHTML = '';
-    logs.forEach(log => {
+    // Reverse the order to show most recent first
+    logs.slice().reverse().forEach(log => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${log.time || ''}</td>
-            <td>${log.officerId || ''}</td>
-            <td>${log.name || ''}</td>
-            <td>${log.section || ''}</td>
-            <td>${log.action || ''}</td>
-        `;
+        const isSession = typeof log.timeIn !== 'undefined' || typeof log.timeOut !== 'undefined';
+        if (isSession) {
+            const duration = log.durationSec ?? (log.timeIn && log.timeOut ? elapsedSeconds(log.timeIn, log.timeOut) : 0);
+            const actionText = log.action || (!log.timeOut ? 'Time-in' : 'Time-out');
+            
+            // Apply row styling based on action
+            if (!log.timeOut || actionText === 'Time-in') {
+                tr.className = 'time-in-row';
+            } else if (actionText === 'Time-out') {
+                tr.className = 'time-out-row';
+            }
+            
+            tr.innerHTML = `
+                <td>${formatLocalTime(log.timeIn) || ''}</td>
+                <td>${formatLocalTime(log.timeOut) || ''}</td>
+                <td>${formatDuration(duration) || ''}</td>
+                <td>${log.officerId || ''}</td>
+                <td>${log.name || ''}</td>
+                <td>${log.section || ''}</td>
+                <td><span class="action-badge ${!log.timeOut || actionText === 'Time-in' ? 'action-time-in' : 'action-time-out'}">${actionText}</span></td>
+            `;
+        } else {
+            // Backward compatibility for old single-event logs
+            const actionClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'action-time-in' : 'action-time-out';
+            const rowClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'time-in-row' : 'time-out-row';
+            tr.className = rowClass;
+            tr.innerHTML = `
+                <td>${formatLocalTime(log.time) || ''}</td>
+                <td></td>
+                <td></td>
+                <td>${log.officerId || ''}</td>
+                <td>${log.name || ''}</td>
+                <td>${log.section || ''}</td>
+                <td><span class="action-badge ${actionClass}">${log.action || ''}</span></td>
+            `;
+        }
         tbody.appendChild(tr);
+    });
+
+    // Build summary ranking by total duration per person for this date
+    const totalsByOfficer = {};
+    logs.forEach(log => {
+        const isSession = typeof log.timeIn !== 'undefined' || typeof log.timeOut !== 'undefined';
+        if (!isSession) return;
+        const officerKey = log.officerId || '';
+        const duration = (log.durationSec ?? (log.timeIn && log.timeOut ? elapsedSeconds(log.timeIn, log.timeOut) : 0)) || 0;
+        if (!totalsByOfficer[officerKey]) {
+            totalsByOfficer[officerKey] = { officerId: log.officerId || '', name: log.name || '', section: log.section || '', totalSec: 0 };
+        }
+        totalsByOfficer[officerKey].totalSec += duration;
+    });
+    const rows = Object.values(totalsByOfficer)
+        .sort((a, b) => b.totalSec - a.totalSec);
+    
+    // Build summary stats
+    const statsDiv = document.getElementById('summaryStats');
+    const currentFilterType = document.getElementById('historyFilterType').value;
+    const periodText = currentFilterType === 'daily' ? 'today' : `this ${currentFilterType.slice(0, -2)}`;
+    
+    if (rows.length > 0) {
+        const totalHours = rows.reduce((sum, row) => sum + row.totalSec, 0);
+        const avgHours = totalHours / rows.length;
+        const topPerformer = rows[0];
+        
+        statsDiv.innerHTML = `
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-primary">Top Performer</h5>
+                        <p class="card-text"><strong>${topPerformer.name}</strong><br><small>${formatDuration(topPerformer.totalSec)}</small></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-success">Total Officers</h5>
+                        <p class="card-text"><strong>${rows.length}</strong><br><small>Active ${periodText}</small></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-info">Total Hours</h5>
+                        <p class="card-text"><strong>${formatDuration(totalHours)}</strong><br><small>Combined duty</small></p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h5 class="card-title text-warning">Average</h5>
+                        <p class="card-text"><strong>${formatDuration(Math.floor(avgHours))}</strong><br><small>Per officer</small></p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        statsDiv.innerHTML = '<div class="col-12 text-center text-muted">No duty logs found for this date.</div>';
+    }
+    
+    const sbody = document.getElementById('summaryBody');
+    sbody.innerHTML = '';
+    rows.forEach((row, idx) => {
+        const rank = idx + 1;
+        let rankClass = '';
+        
+        // Styling for top 3
+        if (rank === 1) {
+            rankClass = 'rank-1 top-performer';
+        } else if (rank === 2) {
+            rankClass = 'rank-2';
+        } else if (rank === 3) {
+            rankClass = 'rank-3';
+        }
+        
+        const tr = document.createElement('tr');
+        tr.className = `summary-row ${rankClass}`;
+        tr.innerHTML = `
+            <td class="text-center">${rank}</td>
+            <td>${row.officerId}</td>
+            <td>${row.name}</td>
+            <td>${row.section}</td>
+            <td class="duration-highlight">${formatDuration(row.totalSec)}</td>
+        `;
+        sbody.appendChild(tr);
     });
 }
 
+// --- Export All Historical Data ---
 document.getElementById('exportHistoryBtn').addEventListener('click', function() {
-    const select = document.getElementById('historyDateSelect');
-    const key = select.value;
-    if (!key) return;
-    const logs = loadLogsByKey(key);
-    const exportData = [
-        ['Time', 'Officer ID', 'Name', 'Section', 'Action']
-    ];
-    logs.forEach(log => {
-        exportData.push([log.time, log.officerId, log.name, log.section, log.action]);
+    const allKeys = listAllLogDateKeys();
+    const allLogs = [];
+    
+    // Collect all logs from all dates
+    allKeys.forEach(key => {
+        const logs = loadLogsByKey(key);
+        const dateFromKey = key.replace('dutyLogs-', '');
+        logs.forEach(log => {
+            // Add date information to each log entry
+            allLogs.push({
+                ...log,
+                date: dateFromKey
+            });
+        });
     });
+    
+    const exportData = [
+        ['Date', 'Time In', 'Time Out', 'Duration', 'Officer ID', 'Name', 'Section', 'Action']
+    ];
+    
+    allLogs.forEach(log => {
+        if (typeof log.timeIn !== 'undefined' || typeof log.timeOut !== 'undefined') {
+            const duration = log.durationSec ?? (log.timeIn && log.timeOut ? elapsedSeconds(log.timeIn, log.timeOut) : 0);
+            exportData.push([
+                log.date || '',
+                formatLocalTime(log.timeIn) || '',
+                formatLocalTime(log.timeOut) || '',
+                formatDuration(duration) || '',
+                log.officerId || '',
+                log.name || '',
+                log.section || '',
+                log.action || ''
+            ]);
+        } else {
+            // old format
+            exportData.push([log.date || '', log.time || '', '', '', log.officerId || '', log.name || '', log.section || '', log.action || '']);
+        }
+    });
+    
     const ws = XLSX.utils.aoa_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'DutyLogs');
-    const dateLabel = key.replace('dutyLogs-', '').replace(/\//g, '-');
-    XLSX.writeFile(wb, `duty-logs-${dateLabel}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'AllDutyLogs');
+    const today = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `all-duty-logs-${today}.xlsx`);
+});
+
+// --- Import Historical Data ---
+document.getElementById('importHistoryBtn').addEventListener('click', function() {
+    document.getElementById('importHistoryInput').click();
+});
+
+document.getElementById('importHistoryInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        
+        if (rows.length < 2) {
+            alert('Import file appears to be empty or invalid.');
+            return;
+        }
+        
+        const header = rows[0].map(h => String(h || '').toLowerCase());
+        const hasDate = header.includes('date');
+        const hasNewFormat = header.includes('time in') || header.includes('timein');
+        
+        // Group logs by date
+        const logsByDate = {};
+        
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
+            
+            let logDate = '';
+            let logEntry = {};
+            
+            if (hasDate) {
+                const dateIdx = header.indexOf('date');
+                logDate = String(row[dateIdx] || '');
+                
+                if (hasNewFormat) {
+                    const idxTimeIn = header.findIndex(h => h === 'time in' || h === 'timein');
+                    const idxTimeOut = header.findIndex(h => h === 'time out' || h === 'timeout');
+                    const idxDuration = header.indexOf('duration');
+                    const idxOfficer = header.indexOf('officer id');
+                    const idxName = header.indexOf('name');
+                    const idxSection = header.indexOf('section');
+                    const idxAction = header.indexOf('action');
+                    
+                    const timeIn = String(row[idxTimeIn] ?? '');
+                    const timeOut = String(row[idxTimeOut] ?? '');
+                    const durationStr = String(row[idxDuration] ?? '');
+                    let durationSec = 0;
+                    if (durationStr && /^\d{2}:\d{2}:\d{2}$/.test(durationStr)) {
+                        const parts = durationStr.split(':').map(Number);
+                        durationSec = parts[0]*3600 + parts[1]*60 + parts[2];
+                    }
+                    
+                    logEntry = {
+                        timeIn,
+                        timeOut,
+                        durationSec,
+                        officerId: String(row[idxOfficer] ?? ''),
+                        name: String(row[idxName] ?? ''),
+                        section: String(row[idxSection] ?? ''),
+                        action: String(row[idxAction] ?? '')
+                    };
+                } else {
+                    // Old format
+                    logEntry = {
+                        time: String(row[header.indexOf('time in')] || row[header.indexOf('time')] || ''),
+                        officerId: String(row[header.indexOf('officer id')] ?? ''),
+                        name: String(row[header.indexOf('name')] ?? ''),
+                        section: String(row[header.indexOf('section')] ?? ''),
+                        action: String(row[header.indexOf('action')] ?? '')
+                    };
+                }
+            } else {
+                // Assume today's date if no date column
+                const today = new Date();
+                logDate = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+                
+                if (hasNewFormat) {
+                    // Similar logic as above but without date column
+                    const idxTimeIn = header.findIndex(h => h === 'time in' || h === 'timein');
+                    const idxTimeOut = header.findIndex(h => h === 'time out' || h === 'timeout');
+                    const idxDuration = header.indexOf('duration');
+                    const idxOfficer = header.indexOf('officer id');
+                    const idxName = header.indexOf('name');
+                    const idxSection = header.indexOf('section');
+                    const idxAction = header.indexOf('action');
+                    
+                    const timeIn = String(row[idxTimeIn] ?? '');
+                    const timeOut = String(row[idxTimeOut] ?? '');
+                    const durationStr = String(row[idxDuration] ?? '');
+                    let durationSec = 0;
+                    if (durationStr && /^\d{2}:\d{2}:\d{2}$/.test(durationStr)) {
+                        const parts = durationStr.split(':').map(Number);
+                        durationSec = parts[0]*3600 + parts[1]*60 + parts[2];
+                    }
+                    
+                    logEntry = {
+                        timeIn,
+                        timeOut,
+                        durationSec,
+                        officerId: String(row[idxOfficer] ?? ''),
+                        name: String(row[idxName] ?? ''),
+                        section: String(row[idxSection] ?? ''),
+                        action: String(row[idxAction] ?? '')
+                    };
+                }
+            }
+            
+            if (logDate && Object.keys(logEntry).length > 0) {
+                if (!logsByDate[logDate]) {
+                    logsByDate[logDate] = [];
+                }
+                logsByDate[logDate].push(logEntry);
+            }
+        }
+        
+        // Save logs to localStorage by date
+        Object.keys(logsByDate).forEach(dateStr => {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const key = `dutyLogs-${year}-${month}-${day}`;
+            const existingLogs = loadLogsByKey(key);
+            const mergedLogs = [...existingLogs, ...logsByDate[dateStr]];
+            localStorage.setItem(key, JSON.stringify(mergedLogs));
+        });
+        
+        // Refresh the display
+        initHistoryDatePicker();
+        renderHistory();
+        alert(`Successfully imported logs for ${Object.keys(logsByDate).length} date(s)!`);
+    };
+    reader.readAsArrayBuffer(file);
 });
 </script>
 <!-- Extra libs for embedded barcode generation -->

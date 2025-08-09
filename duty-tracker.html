@@ -137,7 +137,7 @@
       </div>
     </div>
 
-        <!-- Log History Tab -->
+    <!-- Log History Tab -->
     <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
       <div class="row g-3 align-items-end mb-3">
         <div class="col-md-3">
@@ -155,7 +155,6 @@
         <div class="col-md-6 text-md-end">
           <button id="importHistoryBtn" class="btn btn-info me-2">Import Data</button>
           <button id="exportHistoryBtn" class="btn btn-success me-2">Export All Data</button>
-          <button id="refreshHistoryBtn" class="btn btn-outline-secondary">Refresh</button>
         </div>
       </div>
 
@@ -172,21 +171,21 @@
       <div class="tab-content pt-3" id="historySubTabsContent">
         <!-- Order List Sub-tab -->
         <div class="tab-pane fade show active" id="order-list" role="tabpanel" aria-labelledby="order-list-tab">
-          <div class="table-responsive">
-            <table class="table table-bordered log-table mt-2" id="historyTable">
-              <thead class="table-light">
-                <tr>
+      <div class="table-responsive">
+        <table class="table table-bordered log-table mt-2" id="historyTable">
+          <thead class="table-light">
+            <tr>
                   <th>Time In</th>
                   <th>Time Out</th>
                   <th>Duration</th>
-                  <th>Officer ID</th>
-                  <th>Name</th>
-                  <th>Section</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="historyBody"></tbody>
-            </table>
+              <th>Officer ID</th>
+              <th>Name</th>
+              <th>Section</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
           </div>
         </div>
 
@@ -325,17 +324,17 @@ function toggleDuty(officer) {
         return 'Time-out';
     } else {
         // Start a new session (Time-in)
-        logs.push({
+    logs.push({
             timeIn: new Date().toISOString(),
             timeOut: '',
             durationSec: 0,
-            officerId: officer.studentId,
-            name: officer.studentName,
-            section: officer.section,
+        officerId: officer.studentId,
+        name: officer.studentName,
+        section: officer.section,
             action: 'Time-in'
-        });
-        saveLogs(logs);
-        renderLogs();
+    });
+    saveLogs(logs);
+    renderLogs();
         showOfficerInfo(officer, 'Time-in');
         return 'Time-in';
     }
@@ -363,13 +362,13 @@ function renderLogs() {
                 tr.className = 'time-out-row';
             }
             
-            tr.innerHTML = `
+        tr.innerHTML = `
                 <td>${formatLocalTime(log.timeIn)}</td>
                 <td>${formatLocalTime(log.timeOut)}</td>
                 <td>${durationText}</td>
-                <td>${log.officerId}</td>
-                <td>${log.name}</td>
-                <td>${log.section}</td>
+            <td>${log.officerId}</td>
+            <td>${log.name}</td>
+            <td>${log.section}</td>
                 <td><span class="action-badge ${running || actionText === 'Time-in' ? 'action-time-in' : 'action-time-out'}">${actionText}</span></td>
             `;
         } else {
@@ -458,9 +457,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     // Build history selector on first load and whenever history tab is shown
     initHistoryDatePicker();
-    document.getElementById('refreshHistoryBtn').addEventListener('click', () => {
-        initHistoryDatePicker();
-    });
     document.getElementById('historyDateInput').addEventListener('change', () => {
         renderHistory();
     });
@@ -622,15 +618,15 @@ function renderHistory() {
             const actionClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'action-time-in' : 'action-time-out';
             const rowClass = log.action === 'Check-in' || log.action === 'Time-in' ? 'time-in-row' : 'time-out-row';
             tr.className = rowClass;
-            tr.innerHTML = `
+        tr.innerHTML = `
                 <td>${formatLocalTime(log.time) || ''}</td>
                 <td></td>
                 <td></td>
-                <td>${log.officerId || ''}</td>
-                <td>${log.name || ''}</td>
-                <td>${log.section || ''}</td>
+            <td>${log.officerId || ''}</td>
+            <td>${log.name || ''}</td>
+            <td>${log.section || ''}</td>
                 <td><span class="action-badge ${actionClass}">${log.action || ''}</span></td>
-            `;
+        `;
         }
         tbody.appendChild(tr);
     });
@@ -733,7 +729,7 @@ document.getElementById('exportHistoryBtn').addEventListener('click', function()
     
     // Collect all logs from all dates
     allKeys.forEach(key => {
-        const logs = loadLogsByKey(key);
+    const logs = loadLogsByKey(key);
         const dateFromKey = key.replace('dutyLogs-', '');
         logs.forEach(log => {
             // Add date information to each log entry

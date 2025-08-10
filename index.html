@@ -34,6 +34,25 @@
         .action-badge { padding: 4px 8px; border-radius: 4px; font-weight: 500; font-size: 0.85em; }
         .action-time-in { background-color: #28a745; color: white; }
         .action-time-out { background-color: #dc3545; color: white; }
+
+        /* Taskings calendar */
+        .taskings-calendar { table-layout: fixed; width: 100%; }
+        .taskings-calendar td { vertical-align: top; height: 130px; position: relative; width: 14.2857%; }
+        .calendar-day { padding: 6px; cursor: pointer; }
+        .calendar-day.muted { background-color: #fafafa; color: #9aa0a6; }
+        .calendar-date { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+        .task-chip { display: block; font-size: 0.8rem; padding: 2px 6px; border-radius: 8px; background: #e9f5ff; border: 1px solid #cfe8ff; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .task-chip:hover { background: #dff0ff; }
+        .task-chip .small { opacity: 0.8; }
+
+        /* Officer multi-select list */
+        .officer-list { max-height: 260px; overflow: auto; background: #fff; }
+        .officer-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
+        .officer-item:hover { background: #f6f8fa; }
+        .officer-name { flex: 1; }
+
+        /* Range highlight for multi-day taskings */
+        .range-highlight { background-color: #fff9db; box-shadow: inset 0 0 0 1px #ffe58f; }
     </style>
 </head>
 <body>
@@ -61,6 +80,9 @@
   <h1 class="mb-3">Duty Tracker</h1>
 
   <ul class="nav nav-tabs" id="dtTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="taskings-tab" data-bs-toggle="tab" data-bs-target="#taskings" type="button" role="tab">Taskings</button>
+      </li>
     <li class="nav-item" role="presentation">
       <button class="nav-link active" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan" type="button" role="tab">Scan</button>
     </li>
@@ -102,6 +124,176 @@
         </table>
       </div>
 
+    </div>
+
+    <!-- Taskings Tab -->
+    <div class="tab-pane fade" id="taskings" role="tabpanel" aria-labelledby="taskings-tab">
+      <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap gap-2 justify-content-between align-items-center">
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-secondary" id="taskingsPrevMonth" aria-label="Previous month">‹</button>
+            <h2 class="h5 mb-0" id="taskingsMonthLabel">Month YYYY</h2>
+            <button class="btn btn-outline-secondary" id="taskingsNextMonth" aria-label="Next month">›</button>
+          </div>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <select id="taskingsOfficerFilter" class="form-select" style="min-width: 220px;"></select>
+            <button class="btn btn-outline-secondary" id="taskingsExportBtn">Export Taskings</button>
+            <button class="btn btn-outline-info" id="taskingsImportBtn">Import Taskings</button>
+            <button class="btn btn-outline-success" id="taskingsSyncRepoBtn" title="Load Database/taskings.json if present">Sync From Database</button>
+            <button class="btn btn-primary" id="taskingsAddBtn">Add Tasking</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-bordered mb-0 taskings-calendar" id="taskingsCalendar">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center">Sun</th>
+                  <th class="text-center">Mon</th>
+                  <th class="text-center">Tue</th>
+                  <th class="text-center">Wed</th>
+                  <th class="text-center">Thu</th>
+                  <th class="text-center">Fri</th>
+                  <th class="text-center">Sat</th>
+                </tr>
+              </thead>
+              <tbody id="taskingsCalendarBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="taskingsImportInput" accept=".json" style="display:none;" />
+
+      <!-- Tasking Modal -->
+      <div class="modal fade" id="taskingsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="taskingsModalTitle">Add Tasking</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="taskingsForm">
+              <div class="modal-body">
+                <input type="hidden" id="taskId" />
+                <div class="row g-2">
+                  <div class="col-md-6">
+                    <label for="taskStartDate" class="form-label">Start date</label>
+                    <input type="date" class="form-control" id="taskStartDate" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label for="taskEndDate" class="form-label">End date</label>
+                    <input type="date" class="form-control" id="taskEndDate" />
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Officers</label>
+                  <input type="text" class="form-control mb-2" id="taskOfficerSearch" placeholder="Search officers..." />
+                  <div class="d-flex align-items-center justify-content-between mb-2">
+                    <small id="taskOfficerSelectedCount" class="text-muted">Selected: 0</small>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" id="taskOfficerSelectAll" />
+                      <label class="form-check-label" for="taskOfficerSelectAll">Select all visible</label>
+                    </div>
+                  </div>
+                  <div id="taskOfficerList" class="officer-list border rounded p-2"></div>
+                </div>
+                <div class="mb-3">
+                  <label for="taskTitle" class="form-label">Title</label>
+                  <input type="text" class="form-control" id="taskTitle" placeholder="e.g., Gate Duty" required />
+                </div>
+                <div class="row g-2">
+                  <div class="col">
+                    <label for="taskStartTime" class="form-label">Start time (optional)</label>
+                    <input type="time" class="form-control" id="taskStartTime" />
+                  </div>
+                  <div class="col">
+                    <label for="taskEndTime" class="form-label">End time (optional)</label>
+                    <input type="time" class="form-control" id="taskEndTime" />
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <label for="taskLocation" class="form-label">Location</label>
+                  <input type="text" class="form-control" id="taskLocation" placeholder="Optional" />
+                </div>
+                <div class="mt-3">
+                  <label for="taskDesc" class="form-label">Notes</label>
+                  <textarea class="form-control" id="taskDesc" rows="3" placeholder="Optional"></textarea>
+                </div>
+                <div class="mt-3">
+                  <label class="form-label">Checklist (officers can mark when done)</label>
+                  <div class="input-group mb-2">
+                    <input type="text" class="form-control" id="taskChecklistInput" placeholder="Add checklist item..." />
+                    <button type="button" class="btn btn-outline-primary" id="taskChecklistAddBtn">Add</button>
+                  </div>
+                  <ul class="list-group" id="taskChecklistList"></ul>
+                  <small class="text-muted">These items will appear in Tasking Details for officers to check off.</small>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger me-auto" id="taskDeleteBtn" style="display:none;">Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="taskSaveBtn">Save</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tasking Details Modal (read-only) -->
+      <div class="modal fade" id="taskDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Tasking Details</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <dl class="row mb-0">
+                <dt class="col-sm-4">Title</dt>
+                <dd class="col-sm-8" id="detailTitle"></dd>
+                <dt class="col-sm-4">Dates</dt>
+                <dd class="col-sm-8" id="detailDates"></dd>
+                <dt class="col-sm-4">Time</dt>
+                <dd class="col-sm-8" id="detailTime"></dd>
+                <dt class="col-sm-4">Officers</dt>
+                <dd class="col-sm-8" id="detailOfficers"></dd>
+                <dt class="col-sm-4">Location</dt>
+                <dd class="col-sm-8" id="detailLocation"></dd>
+                <dt class="col-sm-4">Notes</dt>
+                <dd class="col-sm-8" id="detailNotes"></dd>
+              </dl>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+              <button type="button" class="btn btn-success" id="detailMarkDoneBtn">Mark as Done</button>
+              <button type="button" class="btn btn-primary" id="detailEditBtn">Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Verify Task via Barcode Modal -->
+      <div class="modal fade" id="verifyTaskModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Verify Officer</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p class="mb-2" id="verifyTaskTitle">Scan the officer's barcode to mark this task as done.</p>
+              <input type="text" id="verifyBarcodeInput" class="form-control form-control-lg" placeholder="Scan barcode here..." autocomplete="off" />
+              <div class="form-text">The barcode must belong to an assigned officer.</div>
+              <div class="mt-2" id="verifyFeedback" class="text-muted"></div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Generate Barcodes Tab (embedded from generate-qr.html) -->
@@ -459,9 +651,9 @@ window.addEventListener('DOMContentLoaded', () => {
         barcodeInput.focus();
     });
 
-    // Activate tab from hash (e.g., #generate, #history, #database, #scan)
+    // Activate tab from hash (e.g., #generate, #history, #database, #scan, #taskings)
     const hash = window.location.hash;
-    if (hash === '#generate' || hash === '#history' || hash === '#database' || hash === '#scan') {
+    if (hash === '#generate' || hash === '#history' || hash === '#database' || hash === '#scan' || hash === '#taskings') {
         const triggerEl = document.querySelector(`button[data-bs-target="${hash}"]`);
         if (triggerEl) new bootstrap.Tab(triggerEl).show();
     }
@@ -482,6 +674,13 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('history-tab').addEventListener('shown.bs.tab', () => {
         initHistoryDatePicker();
+    });
+
+    // Taskings init
+    initTaskings();
+    document.getElementById('taskings-tab').addEventListener('shown.bs.tab', () => {
+        populateTaskingOfficerLists();
+        renderTaskingsCalendar();
     });
 });
 
@@ -922,6 +1121,643 @@ document.getElementById('importHistoryInput').addEventListener('change', functio
     };
     reader.readAsArrayBuffer(file);
 });
+
+// =========================
+// Taskings (Calendar) Logic
+// =========================
+const TASKINGS_STORAGE_KEY = 'dutyTaskings-v1';
+let taskOfficerSelection = new Set();
+
+function loadTaskings() {
+    const raw = localStorage.getItem(TASKINGS_STORAGE_KEY);
+    if (!raw) return [];
+    try { return JSON.parse(raw); } catch { return []; }
+}
+
+function saveTaskings(items) {
+    localStorage.setItem(TASKINGS_STORAGE_KEY, JSON.stringify(items));
+}
+
+function populateTaskingOfficerLists() {
+    const officers = loadOfficers();
+    const filterSelect = document.getElementById('taskingsOfficerFilter');
+    const listContainer = document.getElementById('taskOfficerList');
+    if (!filterSelect || !listContainer) return;
+
+    // Preserve current selections
+    const currentFilter = filterSelect.value;
+
+    filterSelect.innerHTML = '';
+    const optAll = document.createElement('option');
+    optAll.value = '';
+    optAll.textContent = 'All officers';
+    filterSelect.appendChild(optAll);
+
+    officers.forEach(o => {
+        const opt = document.createElement('option');
+        opt.value = o.studentId;
+        opt.textContent = o.studentName;
+        filterSelect.appendChild(opt);
+    });
+    if (currentFilter !== undefined) filterSelect.value = currentFilter;
+
+    // Build interactive list for multi-select
+    const prevSelectedIds = Array.from(taskOfficerSelection);
+    renderOfficerList(officers, prevSelectedIds);
+}
+
+function renderOfficerList(officers, selectedIds) {
+    const listContainer = document.getElementById('taskOfficerList');
+    const searchInput = document.getElementById('taskOfficerSearch');
+    const selectAll = document.getElementById('taskOfficerSelectAll');
+    const selectedCount = document.getElementById('taskOfficerSelectedCount');
+
+    const filterText = (searchInput?.value || '').toLowerCase().trim();
+    const filtered = officers.filter(o => o.studentName.toLowerCase().includes(filterText));
+
+    listContainer.innerHTML = '';
+    filtered.forEach(o => {
+        const item = document.createElement('div');
+        item.className = 'officer-item';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'form-check-input';
+        cb.value = o.studentId;
+        // Initialize selection set if provided
+        if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+            selectedIds.forEach(id => taskOfficerSelection.add(id));
+        }
+        cb.checked = taskOfficerSelection.has(o.studentId);
+        const label = document.createElement('span');
+        label.className = 'officer-name';
+        label.textContent = o.studentName;
+        item.appendChild(cb);
+        item.appendChild(label);
+        item.addEventListener('click', (e) => {
+            if (e.target !== cb) cb.checked = !cb.checked;
+            if (cb.checked) taskOfficerSelection.add(o.studentId); else taskOfficerSelection.delete(o.studentId);
+            updateSelectedCount();
+        });
+        cb.addEventListener('change', () => {
+            if (cb.checked) taskOfficerSelection.add(o.studentId); else taskOfficerSelection.delete(o.studentId);
+            updateSelectedCount();
+        });
+        listContainer.appendChild(item);
+    });
+
+    function updateSelectedCount() {
+        const count = taskOfficerSelection.size;
+        if (selectedCount) selectedCount.textContent = `Selected: ${count}`;
+        if (selectAll) selectAll.checked = filtered.length > 0 && filtered.every(o => taskOfficerSelection.has(o.studentId));
+    }
+
+    if (searchInput) searchInput.oninput = () => renderOfficerList(officers, Array.from(taskOfficerSelection));
+    if (selectAll) selectAll.onchange = () => {
+        const ids = filtered.map(o => o.studentId);
+        const check = selectAll.checked;
+        if (check) ids.forEach(id => taskOfficerSelection.add(id));
+        else ids.forEach(id => taskOfficerSelection.delete(id));
+        renderOfficerList(officers, Array.from(taskOfficerSelection));
+    };
+
+    updateSelectedCount();
+}
+
+function getCurrentSelectedOfficerIds() {
+    return Array.from(taskOfficerSelection);
+}
+
+let calendarYear = new Date().getFullYear();
+let calendarMonth = new Date().getMonth(); // 0-11
+
+function setCalendarTo(year, monthIndex) {
+    calendarYear = year;
+    calendarMonth = monthIndex;
+}
+
+function renderTaskingsCalendar() {
+    const monthLabel = document.getElementById('taskingsMonthLabel');
+    const tbody = document.getElementById('taskingsCalendarBody');
+    const filterOfficerId = (document.getElementById('taskingsOfficerFilter') || {}).value || '';
+    if (!monthLabel || !tbody) return;
+
+    const firstDay = new Date(calendarYear, calendarMonth, 1);
+    const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+    const monthName = firstDay.toLocaleString(undefined, { month: 'long' });
+    monthLabel.textContent = `${monthName} ${calendarYear}`;
+
+    // Start grid on Sunday of the week containing the 1st
+    const gridStart = new Date(firstDay);
+    gridStart.setDate(firstDay.getDate() - firstDay.getDay());
+    // End grid on Saturday of the week containing the last day
+    const gridEnd = new Date(lastDay);
+    gridEnd.setDate(lastDay.getDate() + (6 - lastDay.getDay()));
+
+    const all = normalizeLegacyTaskings(loadTaskings());
+    tbody.innerHTML = '';
+
+    // Keep a map of date ISO -> day container for later highlighting
+    const dayMap = {};
+
+    let cursor = new Date(gridStart);
+    while (cursor <= gridEnd) {
+        const tr = document.createElement('tr');
+        for (let d = 0; d < 7; d++) {
+            const td = document.createElement('td');
+            const isMuted = cursor.getMonth() !== calendarMonth;
+            const dateStr = cursor.toISOString().split('T')[0];
+
+            const dayDiv = document.createElement('div');
+            dayDiv.className = `calendar-day ${isMuted ? 'muted' : ''}`;
+            dayDiv.dataset.date = dateStr;
+            dayDiv.addEventListener('click', () => openTaskingsModalForDate(dateStr));
+
+            const dateLabel = document.createElement('div');
+            dateLabel.className = 'calendar-date';
+            dateLabel.textContent = String(cursor.getDate());
+            dayDiv.appendChild(dateLabel);
+            // Register this day's container
+            dayMap[dateStr] = dayDiv;
+
+            const dayTasks = all.filter(t => isDateWithinRange(dateStr, t.startDate, t.endDate) && (!filterOfficerId || (t.officerIds || [t.officerId]).includes(filterOfficerId)));
+            dayTasks.sort((a,b) => (a.start || '').localeCompare(b.start || ''));
+            dayTasks.forEach(t => {
+                const chip = document.createElement('a');
+                chip.href = 'javascript:void(0)';
+                chip.className = 'task-chip';
+                const timeRange = (t.start || t.end) ? `${t.start || ''}${t.end ? ' - ' + t.end : ''}` : '';
+                const dateRange = t.startDate === t.endDate ? t.startDate : `${t.startDate} → ${t.endDate}`;
+                const firstNames = (t.officerNames || (t.officerName ? [t.officerName] : [])).map(n => (n || '').split(' ')[0]).join(', ');
+                chip.title = `${t.title}${timeRange ? ` • ${timeRange}` : ''}\n${dateRange}${t.location ? `\n${t.location}` : ''}`.trim();
+                chip.textContent = `${t.start ? t.start + ' ' : ''}${t.title} — ${firstNames}`;
+                if (t.done) {
+                    chip.classList.add('text-decoration-line-through');
+                    chip.classList.add('text-muted');
+                    chip.title += `\nCompleted`;
+                }
+                chip.addEventListener('click', (ev) => { ev.stopPropagation(); openTaskDetailsModal(t.id); });
+                dayDiv.appendChild(chip);
+            });
+
+            td.appendChild(dayDiv);
+            tr.appendChild(td);
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        tbody.appendChild(tr);
+    }
+
+    // Highlight each day for multi-day tasks that are visible in the current grid
+    const visibleTasks = all.filter(t => (!filterOfficerId || (t.officerIds || [t.officerId]).includes(filterOfficerId)) && !t.done);
+    visibleTasks.forEach(t => {
+        const taskStart = new Date(t.startDate);
+        const taskEnd = new Date(t.endDate || t.startDate);
+        if (isNaN(taskStart) || isNaN(taskEnd)) return;
+        if (taskEnd < gridStart || taskStart > gridEnd) return;
+
+        const start = taskStart > gridStart ? new Date(taskStart) : new Date(gridStart);
+        const end = taskEnd < gridEnd ? new Date(taskEnd) : new Date(gridEnd);
+        const iter = new Date(start);
+        while (iter <= end) {
+            const iso = iter.toISOString().split('T')[0];
+            const host = dayMap[iso];
+            if (host) host.classList.add('range-highlight');
+            iter.setDate(iter.getDate() + 1);
+        }
+    });
+}
+
+function initTaskings() {
+    populateTaskingOfficerLists();
+    const today = new Date();
+    setCalendarTo(today.getFullYear(), today.getMonth());
+    renderTaskingsCalendar();
+
+    document.getElementById('taskingsPrevMonth').addEventListener('click', () => {
+        const dt = new Date(calendarYear, calendarMonth - 1, 1);
+        setCalendarTo(dt.getFullYear(), dt.getMonth());
+        renderTaskingsCalendar();
+    });
+    document.getElementById('taskingsNextMonth').addEventListener('click', () => {
+        const dt = new Date(calendarYear, calendarMonth + 1, 1);
+        setCalendarTo(dt.getFullYear(), dt.getMonth());
+        renderTaskingsCalendar();
+    });
+    document.getElementById('taskingsOfficerFilter').addEventListener('change', () => {
+        renderTaskingsCalendar();
+    });
+    document.getElementById('taskingsAddBtn').addEventListener('click', () => openTaskingsModalForDate(new Date(calendarYear, calendarMonth, 1).toISOString().split('T')[0]));
+    document.getElementById('taskingsExportBtn').addEventListener('click', exportTaskingsJSON);
+    document.getElementById('taskingsImportBtn').addEventListener('click', () => document.getElementById('taskingsImportInput').click());
+    document.getElementById('taskingsImportInput').addEventListener('change', onImportTaskingsFile);
+    document.getElementById('taskingsSyncRepoBtn').addEventListener('click', () => syncTaskingsFromRepo(false));
+
+    const form = document.getElementById('taskingsForm');
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        saveTaskingFromForm();
+    });
+    document.getElementById('taskDeleteBtn').addEventListener('click', () => deleteTaskingFromForm());
+}
+
+function openTaskingsModalForDate(dateStr) {
+    const form = document.getElementById('taskingsForm');
+    form.reset();
+    populateTaskingOfficerLists();
+    taskOfficerSelection = new Set();
+    document.getElementById('taskId').value = '';
+    document.getElementById('taskStartDate').value = dateStr;
+    document.getElementById('taskEndDate').value = '';
+    resetChecklistUI([]);
+    document.getElementById('taskDeleteBtn').style.display = 'none';
+    document.getElementById('taskingsModalTitle').textContent = 'Add Tasking';
+    const modal = new bootstrap.Modal(document.getElementById('taskingsModal'));
+    modal.show();
+}
+
+function openTaskingsModalForEdit(taskId) {
+    const t = loadTaskings().find(x => x.id === taskId);
+    if (!t) return;
+    const n = normalizeLegacyTaskings([t])[0];
+    populateTaskingOfficerLists();
+    taskOfficerSelection = new Set(n.officerIds || (n.officerId ? [n.officerId] : []));
+    document.getElementById('taskId').value = n.id;
+    document.getElementById('taskStartDate').value = n.startDate || '';
+    document.getElementById('taskEndDate').value = n.endDate || '';
+    // Mark officer checkboxes as selected
+    renderOfficerList(loadOfficers(), Array.from(taskOfficerSelection));
+    document.getElementById('taskTitle').value = n.title || '';
+    document.getElementById('taskStartTime').value = n.start || '';
+    document.getElementById('taskEndTime').value = n.end || '';
+    document.getElementById('taskLocation').value = n.location || '';
+    document.getElementById('taskDesc').value = n.notes || '';
+    resetChecklistUI(n.checklist || []);
+    document.getElementById('taskDeleteBtn').style.display = '';
+    document.getElementById('taskingsModalTitle').textContent = 'Edit Tasking';
+    const modal = new bootstrap.Modal(document.getElementById('taskingsModal'));
+    modal.show();
+}
+
+function saveTaskingFromForm() {
+    const id = document.getElementById('taskId').value || cryptoRandomId();
+    const startDate = document.getElementById('taskStartDate').value;
+    const endDateRaw = document.getElementById('taskEndDate').value;
+    const endDate = endDateRaw || startDate;
+    const selectedOfficerIds = getCurrentSelectedOfficerIds();
+    const title = document.getElementById('taskTitle').value.trim();
+    const start = document.getElementById('taskStartTime').value;
+    const end = document.getElementById('taskEndTime').value;
+    const location = document.getElementById('taskLocation').value.trim();
+    const notes = document.getElementById('taskDesc').value.trim();
+    const checklist = collectChecklistFromUI();
+
+    if (!startDate || selectedOfficerIds.length === 0 || !title) {
+        alert('Please fill in date(s), at least one officer, and title.');
+        return;
+    }
+
+    const officers = loadOfficers();
+    const officerNames = selectedOfficerIds.map(id => (officers.find(o => o.studentId === id)?.studentName || id));
+
+    const items = loadTaskings();
+    const existingIdx = items.findIndex(x => x.id === id);
+    const record = { id, startDate, endDate, officerIds: selectedOfficerIds, officerNames, title, start, end, location, notes, checklist };
+    if (existingIdx >= 0) items[existingIdx] = record; else items.push(record);
+    saveTaskings(items);
+    taskOfficerSelection = new Set();
+    renderTaskingsCalendar();
+    bootstrap.Modal.getInstance(document.getElementById('taskingsModal')).hide();
+}
+
+function deleteTaskingFromForm() {
+    const id = document.getElementById('taskId').value;
+    if (!id) return;
+    if (!confirm('Delete this tasking?')) return;
+    const items = loadTaskings().filter(x => x.id !== id);
+    saveTaskings(items);
+    renderTaskingsCalendar();
+    bootstrap.Modal.getInstance(document.getElementById('taskingsModal')).hide();
+}
+
+function cryptoRandomId() {
+    try {
+        const arr = new Uint8Array(8);
+        (window.crypto || window.msCrypto).getRandomValues(arr);
+        return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch {
+        return String(Date.now()) + Math.random().toString(16).slice(2);
+    }
+}
+
+function isDateWithinRange(targetIsoDate, startIsoDate, endIsoDate) {
+    if (!startIsoDate && !endIsoDate) return false;
+    const t = new Date(targetIsoDate);
+    const s = startIsoDate ? new Date(startIsoDate) : t;
+    const e = endIsoDate ? new Date(endIsoDate) : s;
+    // normalize to date-only comparisons
+    s.setHours(0,0,0,0); e.setHours(0,0,0,0); t.setHours(0,0,0,0);
+    return t >= s && t <= e;
+}
+
+// Backward compatibility: convert legacy single-date records {date} into range {startDate,endDate}
+function normalizeLegacyTaskings(list) {
+    return (list || []).map(t => {
+        if (!t.startDate && !t.endDate && t.date) {
+            return { ...t, startDate: t.date, endDate: t.date };
+        }
+        // Promote single officer fields to array-based fields for new UI
+        if (!t.officerIds && t.officerId) {
+            t.officerIds = [t.officerId];
+        }
+        if (!t.officerNames && t.officerName) {
+            t.officerNames = [t.officerName];
+        }
+        if (!t.endDate && t.startDate) {
+            return { ...t, endDate: t.startDate };
+        }
+        return t;
+    });
+}
+
+function openTaskDetailsModal(taskId) {
+    const t = normalizeLegacyTaskings(loadTaskings()).find(x => x.id === taskId);
+    if (!t) return;
+    const titleEl = document.getElementById('detailTitle');
+    const datesEl = document.getElementById('detailDates');
+    const timeEl = document.getElementById('detailTime');
+    const officersEl = document.getElementById('detailOfficers');
+    const locationEl = document.getElementById('detailLocation');
+    const notesEl = document.getElementById('detailNotes');
+    const editBtn = document.getElementById('detailEditBtn');
+
+    const dateRange = t.startDate === t.endDate ? t.startDate : `${t.startDate} → ${t.endDate}`;
+    const timeRange = (t.start || t.end) ? `${t.start || ''}${t.end ? ' - ' + t.end : ''}` : '—';
+    const officerNames = (t.officerNames || (t.officerName ? [t.officerName] : [])).join(', ');
+
+    titleEl.textContent = t.title || '';
+    datesEl.textContent = dateRange;
+    timeEl.textContent = timeRange;
+    officersEl.textContent = officerNames || '—';
+    locationEl.textContent = t.location || '—';
+    notesEl.textContent = t.notes || '—';
+
+    // Render checklist if present
+    const existingChecklist = document.getElementById('detailChecklist');
+    if (existingChecklist) existingChecklist.remove();
+    if (Array.isArray(t.checklist) && t.checklist.length > 0) {
+        const list = document.createElement('ul');
+        list.id = 'detailChecklist';
+        list.className = 'list-group mt-3';
+        t.checklist.forEach((item, idx) => {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex align-items-center gap-2';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.className = 'form-check-input';
+            cb.checked = !!item.done;
+            cb.addEventListener('change', () => { toggleChecklistDone(taskId, idx, cb.checked); updateMarkAvailability(); });
+            const span = document.createElement('span');
+            span.textContent = item.text || '';
+            if (cb.checked) span.classList.add('text-decoration-line-through','text-muted');
+            cb.addEventListener('change', () => {
+                if (cb.checked) span.classList.add('text-decoration-line-through','text-muted');
+                else span.classList.remove('text-decoration-line-through','text-muted');
+            });
+            li.appendChild(cb);
+            li.appendChild(span);
+            list.appendChild(li);
+        });
+        // Insert checklist below notes
+        notesEl.parentElement.parentElement.appendChild(list);
+    }
+
+    editBtn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal')).hide();
+        openTaskingsModalForEdit(taskId);
+    };
+
+    const markBtn = document.getElementById('detailMarkDoneBtn');
+    function updateMarkAvailability() {
+        if (t.done) {
+            markBtn.textContent = 'Done';
+            markBtn.classList.remove('btn-success');
+            markBtn.classList.add('btn-outline-success');
+            markBtn.disabled = true;
+            return;
+        }
+        const checklistEl = document.getElementById('detailChecklist');
+        const hasChecklist = checklistEl && checklistEl.querySelectorAll('li').length > 0;
+        const allChecked = !hasChecklist || Array.from(checklistEl.querySelectorAll('input[type="checkbox"]')).every(c => c.checked);
+        markBtn.textContent = allChecked ? 'Mark as Done' : 'Mark as Done';
+        markBtn.classList.add('btn-success');
+        markBtn.classList.remove('btn-outline-success');
+        markBtn.disabled = !allChecked;
+    }
+
+    updateMarkAvailability();
+
+    markBtn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('taskDetailsModal')).hide();
+        openVerifyTaskModal(taskId);
+    };
+
+    const modal = new bootstrap.Modal(document.getElementById('taskDetailsModal'));
+    modal.show();
+}
+
+function openVerifyTaskModal(taskId) {
+    const t = normalizeLegacyTaskings(loadTaskings()).find(x => x.id === taskId);
+    if (!t) return;
+    const title = document.getElementById('verifyTaskTitle');
+    const input = document.getElementById('verifyBarcodeInput');
+    const feedback = document.getElementById('verifyFeedback');
+    title.textContent = `Scan assigned officer's barcode to mark "${t.title}" as done.`;
+    input.value = '';
+    feedback.textContent = '';
+
+    const modalEl = document.getElementById('verifyTaskModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    // Focus and listen for scan input
+    setTimeout(() => input.focus(), 200);
+
+    const onInput = () => {
+        const code = input.value.trim();
+        if (!code) return;
+        // verify against officers list and task assignment
+        const officer = getOfficerByBarcode(code) || loadOfficers().find(o => o.studentId === code);
+        const allowedIds = t.officerIds || (t.officerId ? [t.officerId] : []);
+        if (officer && allowedIds.includes(officer.studentId)) {
+            feedback.textContent = `Verified: ${officer.studentName}. Marking as done...`;
+            markTaskAsDone(taskId, officer.studentId);
+            input.value = '';
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(modalEl).hide();
+                renderTaskingsCalendar();
+                // If details modal is reopened right away, reflect done state
+                setTimeout(() => openTaskDetailsModal(taskId), 50);
+            }, 600);
+        } else {
+            feedback.textContent = 'Barcode not recognized or officer not assigned to this task.';
+            input.select();
+        }
+    };
+    input.oninput = onInput;
+}
+
+function markTaskAsDone(taskId, verifiedOfficerId) {
+    const items = normalizeLegacyTaskings(loadTaskings());
+    const idx = items.findIndex(t => t.id === taskId);
+    if (idx < 0) return;
+    const now = new Date().toISOString();
+    const t = items[idx];
+    const doneBy = verifiedOfficerId;
+    items[idx] = { ...t, done: true, doneAt: now, doneBy };
+    saveTaskings(items);
+}
+
+// Checklist helpers
+function resetChecklistUI(items) {
+    const list = document.getElementById('taskChecklistList');
+    const input = document.getElementById('taskChecklistInput');
+    list.innerHTML = '';
+    input.value = '';
+    (items || []).forEach(it => addChecklistItemToUI(it.text || '', !!it.done));
+}
+
+function addChecklistItemToUI(text, done) {
+    if (!text) return;
+    const list = document.getElementById('taskChecklistList');
+    const li = document.createElement('li');
+    li.className = 'list-group-item d-flex align-items-center justify-content-between';
+    const left = document.createElement('div');
+    left.className = 'd-flex align-items-center gap-2';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'form-check-input';
+    cb.checked = !!done;
+    const span = document.createElement('span');
+    span.textContent = text;
+    if (cb.checked) span.classList.add('text-decoration-line-through','text-muted');
+    cb.addEventListener('change', () => {
+        if (cb.checked) span.classList.add('text-decoration-line-through','text-muted');
+        else span.classList.remove('text-decoration-line-through','text-muted');
+    });
+    left.appendChild(cb); left.appendChild(span);
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn btn-sm btn-outline-danger';
+    del.textContent = 'Remove';
+    del.addEventListener('click', () => li.remove());
+    li.appendChild(left); li.appendChild(del);
+    list.appendChild(li);
+}
+
+document.getElementById('taskChecklistAddBtn').addEventListener('click', () => {
+    const input = document.getElementById('taskChecklistInput');
+    const text = input.value.trim();
+    if (!text) return;
+    addChecklistItemToUI(text, false);
+    input.value = '';
+    input.focus();
+});
+
+function collectChecklistFromUI() {
+    const list = document.getElementById('taskChecklistList');
+    return Array.from(list.querySelectorAll('li')).map(li => {
+        const cb = li.querySelector('input[type="checkbox"]');
+        const text = li.querySelector('span')?.textContent || '';
+        return { text, done: !!(cb && cb.checked) };
+    });
+}
+
+function toggleChecklistDone(taskId, itemIndex, done) {
+    const items = normalizeLegacyTaskings(loadTaskings());
+    const idx = items.findIndex(t => t.id === taskId);
+    if (idx < 0) return;
+    const t = items[idx];
+    if (!Array.isArray(t.checklist)) t.checklist = [];
+    if (!t.checklist[itemIndex]) return;
+    t.checklist[itemIndex].done = !!done;
+    saveTaskings(items);
+}
+
+// Export/Import Taskings (JSON)
+function exportTaskingsJSON() {
+    const data = normalizeLegacyTaskings(loadTaskings());
+    const blob = new Blob([JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), taskings: data }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().split('T')[0];
+    a.href = url;
+    a.download = `taskings-${today}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+function onImportTaskingsFile(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+        try {
+            const parsed = JSON.parse(String(evt.target.result || '{}'));
+            const incoming = Array.isArray(parsed) ? parsed : Array.isArray(parsed.taskings) ? parsed.taskings : [];
+            if (incoming.length === 0) { alert('No taskings found in file.'); return; }
+            mergeImportedTaskings(incoming);
+            renderTaskingsCalendar();
+            alert(`Imported ${incoming.length} tasking(s).`);
+        } catch (err) {
+            alert('Invalid JSON file.');
+        }
+    };
+    reader.readAsText(file);
+}
+
+function mergeImportedTaskings(incomingRaw) {
+    const incoming = normalizeLegacyTaskings(incomingRaw).map(t => ({ ...t, id: t.id || cryptoRandomId() }));
+    const current = normalizeLegacyTaskings(loadTaskings());
+    const byId = new Map(current.map(t => [t.id, t]));
+    incoming.forEach(t => {
+        // Simple merge: replace if same id, otherwise add new
+        byId.set(t.id, t);
+    });
+    saveTaskings(Array.from(byId.values()));
+}
+
+// Load taskings from Database/taskings.json (served by GitHub Pages or local dev)
+async function syncTaskingsFromRepo(replace) {
+    try {
+        const res = await fetch('Database/taskings.json?cb=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) { alert('Database/taskings.json not found.'); return; }
+        const json = await res.json();
+        const incoming = Array.isArray(json) ? json : Array.isArray(json.taskings) ? json.taskings : [];
+        if (incoming.length === 0) { alert('No taskings in Database/taskings.json'); return; }
+        if (replace) {
+            saveTaskings(normalizeLegacyTaskings(incoming).map(t => ({ ...t, id: t.id || cryptoRandomId() })));
+        } else {
+            mergeImportedTaskings(incoming);
+        }
+        renderTaskingsCalendar();
+        alert(`Synced ${incoming.length} tasking(s) from Database/taskings.json`);
+    } catch (e) {
+        alert('Failed to load Database/taskings.json');
+    }
+}
+
+// On first load, if there are no local taskings, attempt auto-sync from repo
+(function autoSyncIfEmpty(){
+    try {
+        const existing = loadTaskings();
+        if (!existing || existing.length === 0) {
+            // fire and forget, do not block UI
+            syncTaskingsFromRepo(false);
+        }
+    } catch {}
+})();
 </script>
 <!-- Extra libs for embedded barcode generation -->
 <script src="lib/JsBarcode.all.min.js"></script>

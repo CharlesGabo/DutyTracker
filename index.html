@@ -1759,10 +1759,10 @@ async function syncTaskingsFromRepo(replace) {
 
 // Probe recent dates to find latest taskings-YYYY-MM-DD.json
 async function findLatestTaskingsUrl() {
-    const patterns = [
-        (d) => `Database/taskings-${d}.json`,
-        (d) => `Database/taskings_${d}.json`,
-        (d) => `Database/taskings${d}.json`,
+    const baseMakers = [
+        (d) => `Database/taskings-${d}`,
+        (d) => `Database/taskings_${d}`,
+        (d) => `Database/taskings${d}`,
     ];
     const today = new Date();
     // Check the past 365 days
@@ -1773,19 +1773,30 @@ async function findLatestTaskingsUrl() {
         const m = String(dt.getMonth() + 1).padStart(2, '0');
         const d = String(dt.getDate()).padStart(2, '0');
         const seg = `${y}-${m}-${d}`;
-        for (const pat of patterns) {
-            const candidate = pat(seg);
+        for (const makeBase of baseMakers) {
+            const base = makeBase(seg);
+            // Try numbered copies first (highest number is newest)
+            for (let n = 50; n >= 1; n--) {
+                const candidate = `${base}%20(${n}).json`;
+                try {
+                    let r = await fetch(candidate, { method: 'HEAD', cache: 'no-store' });
+                    if (!r.ok) {
+                        r = await fetch(candidate, { method: 'GET', cache: 'no-store' });
+                        if (!r.ok) continue;
+                    }
+                    return candidate + '?cb=' + Date.now();
+                } catch (_) { /* continue */ }
+            }
+            // Then try plain filename without number
+            const plain = `${base}.json`;
             try {
-                // Try HEAD first to avoid downloading; fallback to GET if HEAD blocked
-                let r = await fetch(candidate, { method: 'HEAD', cache: 'no-store' });
+                let r = await fetch(plain, { method: 'HEAD', cache: 'no-store' });
                 if (!r.ok) {
-                    r = await fetch(candidate, { method: 'GET', cache: 'no-store' });
+                    r = await fetch(plain, { method: 'GET', cache: 'no-store' });
                     if (!r.ok) continue;
                 }
-                return candidate + '?cb=' + Date.now();
-            } catch (_) {
-                // ignore and continue
-            }
+                return plain + '?cb=' + Date.now();
+            } catch (_) { /* continue */ }
         }
     }
     return null;

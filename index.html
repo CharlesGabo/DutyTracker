@@ -140,6 +140,7 @@
             <button class="btn btn-outline-secondary" id="taskingsExportBtn">Export Taskings</button>
             <button class="btn btn-outline-info" id="taskingsImportBtn">Import Taskings</button>
             <button class="btn btn-outline-success" id="taskingsSyncRepoBtn" title="Load Database/taskings.json if present">Sync From Database</button>
+            <span id="taskingsSyncStatus" class="small text-muted" style="display:none;"></span>
             <button class="btn btn-primary" id="taskingsAddBtn">Add Tasking</button>
           </div>
         </div>
@@ -1731,6 +1732,7 @@ function mergeImportedTaskings(incomingRaw) {
 // Load taskings from Database/taskings.json (served by GitHub Pages or local dev)
 async function syncTaskingsFromRepo(replace) {
     try {
+        setSyncStatus('Syncing…');
         // Try canonical file first
         let url = 'Database/taskings.json?cb=' + Date.now();
         let res = await fetch(url, { cache: 'no-store' });
@@ -1754,6 +1756,8 @@ async function syncTaskingsFromRepo(replace) {
         alert(`Synced ${incoming.length} tasking(s) from ${url.replace(/\?cb=.*/, '')}`);
     } catch (e) {
         alert('Failed to load Database/taskings.json');
+    } finally {
+        clearSyncStatus();
     }
 }
 
@@ -1812,6 +1816,20 @@ async function findLatestTaskingsUrl() {
         }
     } catch {}
 })();
+
+function setSyncStatus(text) {
+    const el = document.getElementById('taskingsSyncStatus');
+    if (!el) return;
+    el.textContent = text || 'Syncing…';
+    el.style.display = '';
+}
+
+function clearSyncStatus() {
+    const el = document.getElementById('taskingsSyncStatus');
+    if (!el) return;
+    el.textContent = '';
+    el.style.display = 'none';
+}
 </script>
 <!-- Extra libs for embedded barcode generation -->
 <script src="lib/JsBarcode.all.min.js"></script>

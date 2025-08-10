@@ -1,28 +1,5 @@
 {
   "version": 1,
-  "exportedAt": "2025-08-10T06:04:15.861Z",
-  "taskings": [
-    {
-      "id": "ec56abdfb390b771",
-      "startDate": "2025-07-31",
-      "endDate": "2025-07-31",
-      "officerIds": [
-        "12324MN-000094"
-      ],
-      "officerNames": [
-        "Charles Gabriel A. Martinez"
-      ],
-      "title": "For today",
-      "start": "",
-      "end": "",
-      "location": "",
-      "notes": "awd",
-      "checklist": [
-        {
-          "text": "check moto",
-          "done": false
-        }
-      ]
-    }
-  ]
+  "exportedAt": "2025-08-10T06:11:31.269Z",
+  "taskings": []
 }

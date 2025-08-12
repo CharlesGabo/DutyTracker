@@ -441,9 +441,23 @@
 <script src="lib/xlsx.full.min.js"></script>
 <script src="lib/encoder.js"></script>
 <script>
+// Storage namespace helper: ensures this folder uses its own isolated keys
+function getAppStorageKey(base) {
+    try {
+        const path = (location && location.pathname ? location.pathname : '')
+            .replace(/\\/g, '/');
+        const parts = path.split('/').filter(Boolean);
+        const dir = parts.length >= 2 ? parts[parts.length - 2] : 'app';
+        return `${dir}:${base}`;
+    } catch (_) {
+        return `app:${base}`;
+    }
+}
+
+const STUDENTS_KEY = getAppStorageKey('barcodeStudents');
 // --- Officer Database (shared with barcode-database.html) ---
 function loadOfficers() {
-    const data = localStorage.getItem('barcodeStudents');
+    const data = localStorage.getItem(STUDENTS_KEY);
     if (data) {
         try {
             return JSON.parse(data);
@@ -632,20 +646,27 @@ window.addEventListener('DOMContentLoaded', () => {
     const barcodeInput = document.getElementById('barcodeInput');
     const beepSound = document.getElementById('beepSound');
     barcodeInput.focus();
-    let lastValue = '';
-    // Auto-read barcode as soon as input is detected (barcode scanners usually send a suffix like Enter or Tab)
-    barcodeInput.addEventListener('input', function(e) {
-        // Only process if value changed and not empty
-        if (barcodeInput.value && barcodeInput.value !== lastValue) {
-            lastValue = barcodeInput.value;
-            // Play beep
-            beepSound.currentTime = 0;
-            beepSound.play();
-            // Process barcode
-            onScanSuccess(barcodeInput.value.trim());
-            barcodeInput.value = '';
-            lastValue = '';
+
+    // Process function to handle complete codes
+    function processScannedCode(raw) {
+        const code = String(raw || '').trim();
+        if (!code) return;
+        try { beepSound.currentTime = 0; beepSound.play(); } catch (_) {}
+        onScanSuccess(code);
+        barcodeInput.value = '';
+    }
+
+    // Most scanners send Enter or Tab after the code
+    barcodeInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            processScannedCode(barcodeInput.value);
         }
+    });
+
+    // If user pastes a full code, process immediately after paste
+    barcodeInput.addEventListener('paste', function() {
+        setTimeout(() => processScannedCode(barcodeInput.value), 0);
     });
     // Refocus input if user clicks elsewhere
     document.body.addEventListener('click', function() {
@@ -1582,7 +1603,7 @@ function openVerifyTaskModal(taskId) {
     // Focus and listen for scan input
     setTimeout(() => input.focus(), 200);
 
-    const onInput = () => {
+    const processVerify = () => {
         const code = input.value.trim();
         if (!code) return;
         // verify against officers list and task assignment
@@ -1603,7 +1624,14 @@ function openVerifyTaskModal(taskId) {
             input.select();
         }
     };
-    input.oninput = onInput;
+    // Trigger verify only when scanner finishes (Enter/Tab) or on paste
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            e.preventDefault();
+            processVerify();
+        }
+    };
+    input.onpaste = () => setTimeout(processVerify, 0);
 }
 
 function markTaskAsDone(taskId, verifiedOfficerId) {

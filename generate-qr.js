@@ -1,3 +1,17 @@
+// Storage namespace helper: ensures this folder uses its own isolated keys
+function getAppStorageKey(base) {
+    try {
+        const path = (location && location.pathname ? location.pathname : '')
+            .replace(/\\/g, '/');
+        const parts = path.split('/').filter(Boolean);
+        const dir = parts.length >= 2 ? parts[parts.length - 2] : 'app';
+        return `${dir}:${base}`;
+    } catch (_) {
+        return `app:${base}`;
+    }
+}
+const STUDENTS_KEY = getAppStorageKey('barcodeStudents');
+
 // Store generated barcodes for bulk download
 let generatedBarcodes = [];
 
@@ -223,7 +237,7 @@ document.getElementById('downloadBarcode').addEventListener('click', function() 
 function updateStudentDatabase(studentId, studentName, section) {
     let students = [];
     try {
-        students = JSON.parse(localStorage.getItem('barcodeStudents')) || [];
+        students = JSON.parse(localStorage.getItem(STUDENTS_KEY)) || [];
     } catch (e) {}
     let found = false;
     students = students.map(s => {
@@ -236,5 +250,5 @@ function updateStudentDatabase(studentId, studentName, section) {
     if (!found) {
         students.push({ uniqueId: studentId, studentId, studentName, section });
     }
-    localStorage.setItem('barcodeStudents', JSON.stringify(students));
+    localStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
 } 

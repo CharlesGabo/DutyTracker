@@ -76,17 +76,31 @@
 <script src="lib/xlsx.full.min.js"></script>
 <script src="lib/encoder.js"></script>
 <script>
+// Storage namespace helper: ensures this folder uses its own isolated keys
+function getAppStorageKey(base) {
+    try {
+        const path = (location && location.pathname ? location.pathname : '')
+            .replace(/\\/g, '/');
+        const parts = path.split('/').filter(Boolean);
+        const dir = parts.length >= 2 ? parts[parts.length - 2] : 'app';
+        return `${dir}:${base}`;
+    } catch (_) {
+        return `app:${base}`;
+    }
+}
+
+const STUDENTS_KEY = getAppStorageKey('barcodeStudents');
 // Sample data (replace with your real data or import from Excel)
 const SAMPLE_STUDENTS = [
 
 ];
 
 function saveStudents() {
-    localStorage.setItem('barcodeStudents', JSON.stringify(students));
+    localStorage.setItem(STUDENTS_KEY, JSON.stringify(students));
 }
 
 function loadStudents() {
-    const data = localStorage.getItem('barcodeStudents');
+    const data = localStorage.getItem(STUDENTS_KEY);
     if (data) {
         try {
             return JSON.parse(data);

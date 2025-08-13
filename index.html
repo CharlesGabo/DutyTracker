@@ -650,11 +650,19 @@ window.addEventListener('DOMContentLoaded', () => {
     // Process function to handle complete codes
     function processScannedCode(raw) {
         const code = String(raw || '').trim();
-        if (!code) return;
+        if (!code || code.length < 3) return;
         try { beepSound.currentTime = 0; beepSound.play(); } catch (_) {}
         onScanSuccess(code);
         barcodeInput.value = '';
     }
+
+    // Debounced input handler to support scanners that type rapidly without Enter/Tab
+    let scanDebounce;
+    const SCAN_IDLE_MS = 100;
+    barcodeInput.addEventListener('input', function() {
+        if (scanDebounce) clearTimeout(scanDebounce);
+        scanDebounce = setTimeout(() => processScannedCode(barcodeInput.value), SCAN_IDLE_MS);
+    });
 
     // Most scanners send Enter or Tab after the code
     barcodeInput.addEventListener('keydown', function(e) {
@@ -1624,7 +1632,15 @@ function openVerifyTaskModal(taskId) {
             input.select();
         }
     };
-    // Trigger verify only when scanner finishes (Enter/Tab) or on paste
+    // Debounced input handler to support scanners that type rapidly without Enter/Tab
+    let verifyDebounce;
+    const VERIFY_IDLE_MS = 100;
+    input.addEventListener('input', function() {
+        if (verifyDebounce) clearTimeout(verifyDebounce);
+        verifyDebounce = setTimeout(processVerify, VERIFY_IDLE_MS);
+    });
+
+    // Trigger verify when scanner finishes (Enter/Tab) or on paste
     input.onkeydown = (e) => {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();

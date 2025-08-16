@@ -7,8 +7,7 @@
     <link href="lib/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
     <style>
-        .scanner-container { max-width: 520px; margin: 0 auto; background: #ffffff; padding: 16px 18px; border-radius: 12px; border: 1px solid #e9ecef; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-        #barcodeInput { padding: 14px 16px; border-radius: 12px; }
+        .scanner-container { max-width: 400px; margin: 0 auto; }
         .log-table { font-size: 0.95rem; }
         .log-table th, .log-table td { vertical-align: middle; }
         .officer-info { font-size: 1.1rem; margin-bottom: 1rem; }
@@ -105,6 +104,10 @@
       <div class="scanner-container mb-3">
         <input type="text" id="barcodeInput" class="form-control form-control-lg" placeholder="Scan barcode here..." autofocus autocomplete="off" style="font-size:1.5rem; text-align:center;" />
         <audio id="beepSound" src="Barcode scanner beep sound (sound effect).mp3" preload="auto"></audio>
+      </div>
+      <div id="scanReadout" class="text-center text-muted mb-2" style="min-height: 1.5rem;">Last scanned: <span id="scanReadoutValue">—</span></div>
+      <div class="mb-3">
+        <input type="text" id="scanTextOutput" class="form-control form-control-lg text-center" readonly placeholder="Scanned text will appear here" />
       </div>
       <div id="officerInfo" class="officer-info"></div>
       <h3 class="mt-4">Today's Duty Logs</h3>
@@ -634,6 +637,10 @@ function showOfficerInfo(officer, action) {
 
 // --- Barcode Scanner ---
 function onScanSuccess(decodedText) {
+    const readoutEl = document.getElementById('scanReadoutValue');
+    if (readoutEl) readoutEl.textContent = decodedText;
+    const textOutput = document.getElementById('scanTextOutput');
+    if (textOutput) textOutput.value = decodedText;
     const officer = getOfficerByBarcode(decodedText);
     if (!officer) {
         showOfficerInfo(null);
@@ -647,33 +654,28 @@ window.addEventListener('DOMContentLoaded', () => {
     const barcodeInput = document.getElementById('barcodeInput');
     const beepSound = document.getElementById('beepSound');
     barcodeInput.focus();
-
-    // Process function to handle complete codes
+    // Debounced scan handling to capture fast-typed scanner input
     function processScannedCode(raw) {
         const code = String(raw || '').trim();
-        if (!code || code.length < 3) return;
+        if (!code || code.length < 2) return;
         try { beepSound.currentTime = 0; beepSound.play(); } catch (_) {}
         onScanSuccess(code);
         barcodeInput.value = '';
     }
-
-    // Debounced input handler to support scanners that type rapidly without Enter/Tab
     let scanDebounce;
-    const SCAN_IDLE_MS = 100;
+    const SCAN_IDLE_MS = 150;
     barcodeInput.addEventListener('input', function() {
         if (scanDebounce) clearTimeout(scanDebounce);
         scanDebounce = setTimeout(() => processScannedCode(barcodeInput.value), SCAN_IDLE_MS);
     });
-
-    // Most scanners send Enter or Tab after the code
+    // Support scanners that send Enter/Tab
     barcodeInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' || e.key === 'Tab') {
             e.preventDefault();
             processScannedCode(barcodeInput.value);
         }
     });
-
-    // If user pastes a full code, process immediately after paste
+    // Process paste immediately
     barcodeInput.addEventListener('paste', function() {
         setTimeout(() => processScannedCode(barcodeInput.value), 0);
     });
@@ -1612,7 +1614,7 @@ function openVerifyTaskModal(taskId) {
     // Focus and listen for scan input
     setTimeout(() => input.focus(), 200);
 
-    const processVerify = () => {
+    const onInput = () => {
         const code = input.value.trim();
         if (!code) return;
         // verify against officers list and task assignment
@@ -1633,22 +1635,13 @@ function openVerifyTaskModal(taskId) {
             input.select();
         }
     };
-    // Debounced input handler to support scanners that type rapidly without Enter/Tab
+    // Debounce verify modal too (captures fast typing)
     let verifyDebounce;
-    const VERIFY_IDLE_MS = 100;
+    const VERIFY_IDLE_MS = 150;
     input.addEventListener('input', function() {
         if (verifyDebounce) clearTimeout(verifyDebounce);
-        verifyDebounce = setTimeout(processVerify, VERIFY_IDLE_MS);
+        verifyDebounce = setTimeout(onInput, VERIFY_IDLE_MS);
     });
-
-    // Trigger verify when scanner finishes (Enter/Tab) or on paste
-    input.onkeydown = (e) => {
-        if (e.key === 'Enter' || e.key === 'Tab') {
-            e.preventDefault();
-            processVerify();
-        }
-    };
-    input.onpaste = () => setTimeout(processVerify, 0);
 }
 
 function markTaskAsDone(taskId, verifiedOfficerId) {
